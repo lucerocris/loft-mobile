@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Loft talks plain HTTP to the laptop inside the tailnet (WireGuard already
+     encrypts it). Cleartext is needed for that; the app only ever connects to
+     the paired laptop address. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

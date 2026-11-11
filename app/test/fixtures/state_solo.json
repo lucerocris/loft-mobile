@@ -1,0 +1,129 @@
+{
+ "cards": [
+  {
+   "kind": "agent",
+   "id": "c0000001",
+   "name": "Blog \u00b7 RSS feed",
+   "account": "main",
+   "work": false,
+   "col": "needs",
+   "state": "needs input",
+   "detail": "The feed has 2 date formats. Keep RFC 822?",
+   "result": "",
+   "cwd": "~/code/blog",
+   "updated": "2026-11-11T15:33:41.079643+00:00",
+   "live": false,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": null,
+   "folder": "~/code/blog"
+  },
+  {
+   "kind": "agent",
+   "id": "c0000002",
+   "name": "Portfolio \u00b7 dark mode",
+   "account": "main",
+   "work": false,
+   "col": "running",
+   "state": "working",
+   "detail": "Checking contrast on the cards",
+   "result": "",
+   "cwd": "~/code/portfolio",
+   "updated": "2026-11-11T15:39:41.079643+00:00",
+   "live": true,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": null,
+   "folder": "~/code/portfolio"
+  },
+  {
+   "kind": "agent",
+   "id": "c0000003",
+   "name": "CLI \u00b7 release script",
+   "account": "main",
+   "work": false,
+   "col": "running",
+   "state": "working",
+   "detail": "Tagging v0.4.1",
+   "result": "",
+   "cwd": "~/code/cli",
+   "updated": "2026-11-11T15:35:41.079643+00:00",
+   "live": true,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": null,
+   "folder": "~/code/cli"
+  },
+  {
+   "kind": "todo",
+   "id": "t0000004",
+   "name": "Resume \u00b7 update",
+   "account": "main",
+   "work": false,
+   "col": "todo",
+   "state": "todo",
+   "detail": "(no prompt yet)",
+   "result": "",
+   "cwd": "~/docs/resume",
+   "updated": "2026-11-10T15:39:41.079643+00:00",
+   "live": false,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": null,
+   "folder": "~/docs/resume"
+  },
+  {
+   "kind": "agent",
+   "id": "c0000005",
+   "name": "Blog \u00b7 images",
+   "account": "main",
+   "work": false,
+   "col": "done",
+   "state": "done",
+   "detail": "",
+   "result": "Images resized",
+   "cwd": "~/code/blog",
+   "updated": "2026-11-10T06:19:41.079643+00:00",
+   "live": false,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": null,
+   "folder": "~/code/blog"
+  }
+ ],
+ "usage": {
+  "main": {
+   "five": "18",
+   "seven": "9",
+   "fiveReset": "",
+   "sevenReset": "",
+   "error": null
+  }
+ },
+ "accounts": [
+  {
+   "id": "main",
+   "label": "Main",
+   "color": "blue",
+   "hex": "#5B8DFF",
+   "email": "me@example.com",
+   "default": true
+  }
+ ],
+ "defaultAccount": "main",
+ "setup": false,
+ "dirs": [
+  "~/code/blog",
+  "~/code/portfolio",
+  "~/code/cli"
+ ],
+ "doneDays": 3,
+ "voice": false,
+ "projects": [],
+ "groupBy": "status"
+}
