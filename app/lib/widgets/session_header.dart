@@ -30,9 +30,8 @@ class SessionHeader extends ConsumerWidget {
     };
   }
 
-  void _switch(BuildContext context, WidgetRef ref, SessionView v) {
+  void _switch(BuildContext context, SessionView v) {
     if (v == mode) return;
-    saveSessionView(ref, v);
     context.pushReplacement(v == SessionView.chat ? '/chat/${card.id}' : '/term/${card.id}');
   }
 
@@ -72,7 +71,7 @@ class SessionHeader extends ConsumerWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(S.s4, 2, S.s4, 10),
         child: Row(children: [
-          ViewToggle(mode: mode, onChanged: (v) => _switch(context, ref, v)),
+          ViewToggle(mode: mode, onChanged: (v) => _switch(context, v)),
           const SizedBox(width: S.s3),
           Expanded(
             child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [

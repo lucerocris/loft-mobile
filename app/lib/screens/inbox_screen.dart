@@ -67,7 +67,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     if (c.isTodo) {
       context.push('/todo/${c.id}');
     } else {
-      context.push('/agent/${c.id}'); // Chat or Terminal, whichever was used last
+      context.push('/agent/${c.id}'); // opens in Chat
     }
   }
 
