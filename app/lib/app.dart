@@ -36,16 +36,15 @@ final _routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/pair', builder: (_, _) => const PairScreen()),
       GoRoute(path: '/', builder: (_, _) => const InboxScreen()),
-      // An agent opens in the last view used (Chat by default); older Loft = no chat.
+      // An agent always opens in Chat; older Loft = no chat.
       GoRoute(path: '/agent/:id', pageBuilder: (_, s) {
         final id = s.pathParameters['id']!;
-        final view = ref.read(sessionViewProvider);
         Widget w;
         if (ref.read(chatUnsupportedProvider)) {
           final needs = ref.read(connProvider).snap.byId(id)?.col == Col.needs;
           w = needs ? AgentScreen(id: id) : TerminalScreen(id: id);
         } else {
-          w = view == SessionView.terminal ? TerminalScreen(id: id) : ChatScreen(id: id);
+          w = ChatScreen(id: id);
         }
         return MaterialPage(key: s.pageKey, child: w);
       }),
