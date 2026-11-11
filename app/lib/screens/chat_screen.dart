@@ -13,6 +13,7 @@ import '../state/conn.dart';
 import '../state/session_view.dart';
 import '../theme/tokens.dart';
 import '../voice/voice_controller.dart';
+import '../widgets/attach.dart';
 import '../widgets/chat_widgets.dart';
 import '../widgets/common.dart';
 import '../widgets/prompt_actions.dart';
@@ -255,6 +256,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with PromptActions {
             }),
             banner: conn.online || !conn.loaded ? null : 'Replies wait on the phone and send when $host is back',
             onSend: _send,
+            onAttach: () {
+              final client = ref.read(clientProvider);
+              if (client != null) attachFiles(context, client, _field);
+            },
             onTranscript: (t) async => deliverTranscript(context, _field, t, go: _send, goLabel: otherQ != null ? 'Answering' : 'Sending to ${card.name}'),
           ),
         ]),

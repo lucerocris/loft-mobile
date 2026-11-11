@@ -11,6 +11,7 @@ import '../data/outbox.dart';
 import '../state/conn.dart';
 import '../theme/tokens.dart';
 import '../voice/voice_controller.dart';
+import '../widgets/attach.dart';
 import '../widgets/agent_menu.dart';
 import '../widgets/chat_widgets.dart';
 import '../widgets/common.dart';
@@ -187,6 +188,10 @@ class _AgentScreenState extends ConsumerState<AgentScreen> with PromptActions {
             hostName: host,
             laptopReachable: conn.online,
             onSend: _send,
+            onAttach: () {
+              final client = ref.read(clientProvider);
+              if (client != null) attachFiles(context, client, _field);
+            },
             onTranscript: (t) async => deliverTranscript(context, _field, t, go: _send, goLabel: 'Sending to ${card.name}'),
           ),
         ]),

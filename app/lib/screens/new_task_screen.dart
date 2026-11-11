@@ -11,6 +11,7 @@ import '../data/outbox.dart';
 import '../state/conn.dart';
 import '../theme/tokens.dart';
 import '../voice/voice_controller.dart';
+import '../widgets/attach.dart';
 import '../widgets/common.dart';
 import '../widgets/voice_dock.dart';
 import 'folder_picker.dart';
@@ -374,6 +375,8 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, S.s2, 20, S.s2),
                 child: Row(children: [
+                  IconBtn(LucideIcons.paperclip, tooltip: 'Attach', onTap: _busy || listening ? null : () => attachFiles(context, ref.read(clientProvider)!, _prompt)),
+                  const SizedBox(width: S.s2),
                   Expanded(child: Btn(todo == null ? 'Save to Todo' : 'Save prompt', onTap: _busy || listening || _prompt.text.trim().isEmpty ? null : () => _submit(false))),
                   const SizedBox(width: S.s3),
                   Expanded(child: Btn('Start', kind: BtnKind.primary, busy: _busy, onTap: listening || _prompt.text.trim().isEmpty ? null : () => _submit(true))),

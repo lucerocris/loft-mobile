@@ -237,6 +237,23 @@ class LoftClient {
     }
   }
 
+  /// POST `/api/files?name=`: store a file on the laptop; returns its absolute path
+  /// there, for pointing an agent at it. A 404 means the laptop runs an older Loft.
+  Future<String> upload(String name, List<int> bytes) async {
+    try {
+      final r = await _http
+          .post(pairing.http(Uri(path: '/api/files', queryParameters: {'name': name}).toString()),
+              headers: {...pairing.auth, 'Content-Type': 'application/octet-stream'}, body: bytes)
+          .timeout(const Duration(seconds: 120));
+      if (r.statusCode == 404) throw const LoftError('Update Loft on the laptop to send files.', status: 404);
+      return '${(await _decode(r) as Map)['path']}';
+    } on LoftError {
+      rethrow;
+    } catch (e) {
+      throw LoftError('Can\'t reach ${pairing.name}: ${_short(e)}');
+    }
+  }
+
   /// GET /api/events: the full snapshot whenever it changes; null = heartbeat.
   Stream<Snapshot?> events() async* {
     final req = http.Request('GET', pairing.http('/api/events'))..headers.addAll({...pairing.auth, 'Accept': 'text/event-stream'});

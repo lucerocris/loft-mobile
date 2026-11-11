@@ -154,6 +154,8 @@ class VoiceDock extends StatelessWidget {
   final VoidCallback? onChipCancel;
   /// A note above the field, e.g. replies queued while offline (amber).
   final String? banner;
+  /// Paperclip: pick files on the phone and add their laptop paths to the field.
+  final VoidCallback? onAttach;
 
   const VoiceDock({
     super.key,
@@ -169,6 +171,7 @@ class VoiceDock extends StatelessWidget {
     this.chip,
     this.onChipCancel,
     this.banner,
+    this.onAttach,
   });
 
   @override
@@ -296,6 +299,10 @@ class VoiceDock extends StatelessWidget {
                     ]),
                   ),
                 Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  if (onAttach != null) ...[
+                    _RoundBtn(LucideIcons.paperclip, tooltip: 'Attach', onTap: listening || transcribing ? null : onAttach),
+                    const SizedBox(width: S.s2),
+                  ],
                   Expanded(child: box),
                   const SizedBox(width: S.s2),
                   MicButton(voice: voice, size: 48, onDone: onTranscript),
@@ -317,6 +324,10 @@ class VoiceDock extends StatelessWidget {
               box,
               const SizedBox(height: S.s3),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                if (onAttach != null) ...[
+                  _RoundBtn(LucideIcons.paperclip, tooltip: 'Attach', outlined: true, onTap: listening || transcribing ? null : onAttach),
+                  const SizedBox(width: S.s4),
+                ],
                 if (listening || transcribing)
                   _RoundBtn(LucideIcons.x, tooltip: 'Cancel', outlined: true, onTap: transcribing ? null : voice.cancel)
                 else
