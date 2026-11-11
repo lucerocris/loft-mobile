@@ -24,7 +24,11 @@ abstract final class Alerts {
 
   static Future<void> initNotifications({bool foreground = true}) async {
     await notifications.initialize(
-      settings: const InitializationSettings(android: AndroidInitializationSettings('@drawable/ic_stat_loft')),
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@drawable/ic_stat_loft'),
+        // Alerts are Android-only for now; don't prompt for notification permission on iOS launch.
+        iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
+      ),
       onDidReceiveNotificationResponse: foreground ? (r) => _open(r.payload) : null,
     );
     await notifications
