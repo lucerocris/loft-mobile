@@ -19,7 +19,8 @@ Future<bool> attachFiles(BuildContext context, LoftClient client, TextEditingCon
     ],
   );
   if (type == null) return false;
-  final files = await FilePicker.pickFiles(type: type);
+  // compatible: iPhone photos arrive as JPEG, not HEIC, which agents can't read.
+  final files = await FilePicker.pickFiles(type: type, darwinOptions: const DarwinOptions(assetRepresentationMode: DarwinAssetRepresentationMode.compatible));
   if (files.isEmpty || !context.mounted) return false;
   toast(context, files.length == 1 ? 'Sending ${files.single.name}…' : 'Sending ${files.length} files…', duration: const Duration(minutes: 2));
   final paths = <String>[];
