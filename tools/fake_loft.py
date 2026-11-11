@@ -13,7 +13,13 @@ Any bearer token is accepted.
 
 Scenarios: freelancer (2 accounts, 4 client projects, one on both accounts),
 two-accounts (Work + Personal, grouped by account), solo (one account, no projects),
-legacy (an older Loft: no accounts/projects/groupBy fields).
+legacy (an older Loft: no accounts/projects/groupBy fields, no chat messages),
+pickers (a pending AskUserQuestion with two questions, a permission prompt, a plan
+approval, and a plain-text question).
+
+GET /api/cards/<id>/messages serves a made-up session per card (the chat view);
+running cards grow by one step every few seconds, and a reply is appended.
+POST /api/cards/<id>/answer answers a picker (409 when the tool id is stale).
 """
 import argparse
 import copy
@@ -24,6 +30,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 
 NOW = datetime.now(timezone.utc)
 HEX = {"blue": "#5B8DFF", "green": "#46C07D", "purple": "#A98BFF", "cyan": "#3EC1D3",
@@ -115,6 +122,209 @@ SCENARIOS = {
     },
 }
 SCENARIOS["legacy"] = {"legacy": True, **copy.deepcopy(SCENARIOS["two-accounts"])}
+SCENARIOS["pickers"] = {
+    "accounts": [acc("work", "Work", "blue", "work@example.com"), acc("personal", "Personal", "green", "me@example.com", True)],
+    "usage": {"work": usage(42, 15), "personal": usage(12, 30)},
+    "defaultAccount": "personal",
+    "groupBy": "status",
+    "projects": [],
+    "cards": [
+        card("p0000001", "Pizza night · order", "personal", "needs", "~/errands", "Pick a crust", 2),
+        card("p0000002", "Notes · export", "work", "needs", "~/work/notes", "approve Bash: npm run export -- --all", 4),
+        card("p0000003", "Search · reindex plan", "work", "needs", "~/work/search", "approve plan", 6),
+        card("p0000004", "Blog · RSS feed", "personal", "needs", "~/code/blog", "The feed has 2 date formats. Keep RFC 822?", 9),
+        card("p0000005", "Reader · tests", "personal", "running", "~/reader", "Running the emulator tests", 0),
+    ],
+    "assignments": {},
+    "dirs": ["~/errands", "~/work/notes", "~/code/blog"],
+}
+
+# ------------------------------------------------------------------ chat messages
+# Same item shapes as Loft's loft/transcript.py. Cursors here are item counts.
+QUESTIONS = {
+    "a0000006": [{"question": "Should failed webhooks retry 3 or 5 times?", "header": "Retries", "multi": False,
+                  "options": [{"label": "3 tries", "description": "Clears most network blips"},
+                              {"label": "5 tries", "description": "Also covers a short outage"}]}],
+    "b0000001": [{"question": "Fix both?", "header": "Fix", "multi": False,
+                  "options": [{"label": "Fix both", "description": "Rounding and the missing refund rows"},
+                              {"label": "Rounding only", "description": "Leave refunds for later"}]}],
+}
+QUESTIONS["p0000001"] = [
+    {"question": "Pick a crust", "header": "Crust", "multi": False,
+     "options": [{"label": "Thin", "description": "Crisp, bakes fast"}, {"label": "Thick", "description": "Soft and filling"}]},
+    {"question": "Pick toppings", "header": "Toppings", "multi": True,
+     "options": [{"label": "Cheese", "description": "Extra mozzarella"}, {"label": "Olives", "description": "Black olives"},
+                 {"label": "Basil", "description": "Fresh leaves"}]},
+]
+PERMS = {   # card id -> the permission / plan prompt it waits on (what Loft reads off the attach screen)
+    "p0000002": {"tool": ("Bash", "Export every notebook", "npm run export -- --all"), "title": "Do you want to proceed?",
+                 "options": ["Yes", "Yes, and don't ask again for npm run export commands", "No"]},
+    "p0000003": {"tool": ("Plan", "Ready to code?", ""), "title": "Claude wants to exit plan mode",
+                 "plan": "## Reindex plan\n\n1. Snapshot the current index\n2. Rebuild with the new analyzer\n3. Swap the alias, keep the old index for a day",
+                 "options": ["Yes, and auto-accept edits", "Yes, and manually approve edits", "No, keep planning"]},
+}
+LIVE_STEPS = [
+    ("tool", "Bash", "Run the test suite", "npm test"),
+    ("result", True, "Tests: 41 passed, 41 total\nTime: 6.2 s"),
+    ("assistant", "All green. Moving on to the next part."),
+    ("tool", "Read", "settings.ts", "~/project/src/settings.ts"),
+    ("result", True, "1\texport const settings = {\n2\t  retries: 3,\n3\t  timeoutMs: 8000,\n4\t};"),
+    ("tool", "Edit", "settings.ts", "~/project/src/settings.ts"),
+    ("result", True, "The file ~/project/src/settings.ts has been updated successfully.", {"add": 4, "del": 1}),
+    ("assistant", "Updated the defaults. Running the checks again."),
+]
+MSGS = {}   # card id -> {"items": [...], "t0": time}
+
+
+def _it(cid, n, kind, now=False, **kw):
+    at = datetime.now(timezone.utc).isoformat() if now else ago(max(0, 30 - n))
+    return {"id": f"{cid}-{n:04d}", "kind": kind, "at": at, **kw}
+
+
+def _step(cid, n, step, tool_ids, now=False):
+    kind = step[0]
+    if kind == "tool":
+        tid = f"toolu_{cid}_{n}"
+        tool_ids.append(tid)
+        return _it(cid, n, "tool", now, tool=tid, name=step[1], title=step[2], detail=step[3])
+    if kind == "result":
+        text = step[2]
+        lines = text.splitlines()
+        it = _it(cid, n, "result", now, ok=step[1], preview="\n".join(lines[:4]), lines=len(lines), text=text, cut=False)
+        it["for"] = tool_ids[-1] if tool_ids else ""
+        if len(step) > 3:
+            it["diff"] = step[3]
+        return it
+    return _it(cid, n, "assistant", now, text=step[1])
+
+
+def build_messages(c):
+    cid, prompt = c["id"], c.get("detail") or c["name"]
+    items, tools, n = [], [], 0
+
+    def add(kind, **kw):
+        nonlocal n
+        items.append(_it(cid, n, kind, **kw))
+        n += 1
+
+    def step(st):
+        nonlocal n
+        items.append(_step(cid, n, st, tools))
+        n += 1
+
+    add("user", text=f"{c['name']}: take a look and get it done. Ask me before anything risky.")
+    add("assistant", text="I'll start by reading the project and running the tests so I know where things stand.")
+    step(("tool", "Bash", "Run the tests", "npm test"))
+    step(("result", False, "FAIL src/format.test.ts\n  rounds totals\n    expected 10.05 got 10.04\n\nTests: 1 failed, 40 passed"))
+    step(("tool", "Grep", "roundTotal", "roundTotal in ~/project/src"))
+    step(("result", True, "src/format.ts:12\nsrc/report.ts:40\nsrc/report.ts:88"))
+    step(("tool", "Read", "format.ts", "~/project/src/format.ts"))
+    step(("result", True, "10\texport function roundTotal(x: number) {\n11\t  // floors instead of rounding\n12\t  return Math.floor(x * 100) / 100;\n13\t}"))
+    add("assistant", text=(
+        "Found it. `roundTotal` **floors** instead of rounding, so some totals come out one cent low.\n\n"
+        "```ts\nexport function roundTotal(x: number) {\n  return Math.round(x * 100) / 100;\n}\n```\n\n"
+        "- `format.ts` is the only place that needs the change\n- two reports call it, both are covered by tests"))
+    if c["col"] == "needs":
+        if cid in QUESTIONS:
+            add("question", tool=f"toolu_{cid}_ask", questions=QUESTIONS[cid])
+        elif cid in PERMS:
+            name, title, detail = PERMS[cid]["tool"]
+            extra = {"plan": PERMS[cid]["plan"]} if "plan" in PERMS[cid] else {}
+            add("tool", tool=f"toolu_{cid}_perm", name=name, title=title, detail=detail, **extra)
+        else:
+            add("assistant", text=prompt)
+    elif c["col"] == "done":
+        step(("tool", "Edit", "format.ts", "~/project/src/format.ts"))
+        step(("result", True, "The file ~/project/src/format.ts has been updated successfully.", {"add": 1, "del": 1}))
+        add("assistant", text=(c.get("result") or "Done.") + ". All 41 tests pass.")
+    elif c["col"] == "running":
+        add("user", text="Looks right. Go ahead and fix it, then run everything again.")
+        step(("tool", "Edit", "format.ts", "~/project/src/format.ts"))
+        step(("result", True, "The file ~/project/src/format.ts has been updated successfully.", {"add": 1, "del": 1}))
+    return {"items": items, "t0": time.time(), "tools": tools, "live": 0}
+
+
+def messages(c, q):
+    m = MSGS.get(c["id"])
+    if m is None:
+        m = MSGS[c["id"]] = build_messages(c)
+    if c["col"] == "running":   # one live step every 4 s while it works
+        due = int((time.time() - m["t0"]) / 4)
+        while m["live"] < due:
+            st = LIVE_STEPS[m["live"] % len(LIVE_STEPS)]
+            m["items"].append(_step(c["id"], len(m["items"]), st, m["tools"], now=True))
+            m["live"] += 1
+    items = m["items"]
+    limit = int(q.get("limit") or 60)
+    out = {"id": c["id"], "state": c["col"], "working": c["col"] == "running", "detail": c.get("detail") or "",
+           "session": "fake-" + c["id"], "size": len(items), "cursor": len(items), "gap": False, "pending": None}
+    if q.get("after", "").isdigit() and q.get("session") == out["session"]:
+        a = min(int(q["after"]), len(items))
+        page, start = items[a:], a
+    else:
+        b = int(q["before"]) if q.get("before", "").isdigit() else len(items)
+        start = max(0, b - limit)
+        page = items[start:b]
+    if c["col"] == "needs":
+        out["pending"] = {"text": c.get("detail") or "", "question": None, "prompt": pending_prompt(c, items)}
+        if out["pending"]["prompt"] and out["pending"]["prompt"]["kind"] == "question":
+            out["pending"]["question"] = items[-1]
+    return {**out, "items": page, "start": start, "more": start > 0}
+
+
+def pending_prompt(c, items):
+    last = items[-1] if items else None
+    if not last:
+        return None
+    if last["kind"] == "question":
+        return {"kind": "question", "tool": last["tool"], "questions": last["questions"]}
+    if last["kind"] == "tool" and c["id"] in PERMS:
+        p = PERMS[c["id"]]
+        return {"kind": "permission", "tool": last["tool"], "title": p["title"], "action": c.get("detail") or "",
+                "options": [{"n": i + 1, "label": o} for i, o in enumerate(p["options"])]}
+    return None
+
+
+def answer(c, body):
+    """POST /api/cards/<id>/answer, the same contract as Loft's answer_route."""
+    m = MSGS.get(c["id"]) or build_messages(c)
+    MSGS[c["id"]] = m
+    pend = pending_prompt(c, m["items"]) if c["col"] == "needs" else None
+    if not pend or pend["tool"] != body.get("tool"):
+        return 409, {"message": "The question changed. Here is the current one.", "pending": pend}
+    if pend["kind"] == "question":
+        ans = body.get("answers")
+        if not isinstance(ans, list) or len(ans) != len(pend["questions"]):
+            return 400, {"message": f"Expected {len(pend['questions'])} answer(s)."}
+        parts = []
+        for q, a in zip(pend["questions"], ans):
+            labels = [q["options"][i]["label"] for i in (a.get("choices") or ([a["choice"]] if isinstance(a.get("choice"), int) else []))
+                      if isinstance(i, int) and 0 <= i < len(q["options"])]
+            if a.get("other"):
+                labels.append(a["other"])
+            if not labels:
+                return 400, {"message": "Pick one of the options."}
+            parts.append(f'"{q["question"]}"="{", ".join(labels)}"')
+        text = "Your questions have been answered: " + ", ".join(parts)
+    else:
+        n = body.get("permission")
+        if not isinstance(n, int) or not 1 <= n <= len(pend["options"]):
+            return 400, {"message": "That option isn't on the prompt."}
+        text = "Approved: " + pend["options"][n - 1]["label"] if n < len(pend["options"]) else "The user said no."
+    m["items"].append(_it(c["id"], len(m["items"]), "result", now=True, ok=True, preview=text, lines=1, text=text, cut=False, **{"for": pend["tool"]}))
+    m["t0"], m["live"] = time.time(), 0
+    c["col"], c["state"], c["detail"], c["live"] = "running", "working", "Carrying on", True
+    return 200, {"message": "Answered", "confirmed": True}
+
+
+def reply_message(c, text):
+    m = MSGS.get(c["id"])
+    if m is None:
+        m = MSGS[c["id"]] = build_messages(c)
+    m["items"].append(_it(c["id"], len(m["items"]), "user", now=True, text=text))
+    m["t0"], m["live"] = time.time(), 0
+    c["col"], c["state"], c["detail"], c["live"] = "running", "working", "Working on your reply", True
+
 
 LOCK = threading.Lock()
 STATE = {"name": "", "s": None, "version": 0}
@@ -126,6 +336,7 @@ def load(name):
         STATE["name"] = name
         STATE["s"] = copy.deepcopy(SCENARIOS[name])
         STATE["version"] += 1
+        MSGS.clear()
 
 
 def bump():
@@ -236,6 +447,19 @@ class H(BaseHTTPRequestHandler):
                 return self._json(200, snapshot())
         if self.path.startswith("/api/timeline/"):
             return self._json(200, [])
+        url = urlparse(self.path)
+        parts = url.path.strip("/").split("/")
+        if len(parts) == 4 and parts[:2] == ["api", "cards"] and parts[3] == "messages":
+            with LOCK:
+                if self._legacy_404():
+                    return
+                c = next((c for c in STATE["s"]["cards"] if c["id"] == parts[2]), None)
+                if c is None:
+                    return self._json(404, {"error": "not found"})
+                if c["kind"] == "todo":
+                    return self._json(200, {"id": c["id"], "state": "todo", "working": False, "detail": "", "session": None,
+                                            "cursor": 0, "start": 0, "more": False, "gap": False, "items": [], "pending": None})
+                return self._json(200, messages(c, {k: v[-1] for k, v in parse_qs(url.query).items()}))
         if self.path == "/__log":
             return self._json(200, LOG[-50:])
         if self.path == "/api/events":
@@ -321,6 +545,17 @@ class H(BaseHTTPRequestHandler):
                 if action == "archive":
                     s["cards"].remove(c)
                     bump()
+                if action == "answer":
+                    if self._legacy_404():
+                        return
+                    code, payload = answer(c, body)
+                    if code == 200:
+                        bump()
+                    return self._json(code, payload)
+                if action == "reply" and (body.get("text") or "").strip():
+                    reply_message(c, body["text"].strip())
+                    bump()
+                    return self._json(200, {"message": "Sent"})
                 if action == "pin":
                     c["pinned"] = not c["pinned"]
                     bump()

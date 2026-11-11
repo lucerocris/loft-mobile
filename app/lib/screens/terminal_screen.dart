@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:xterm/xterm.dart';
@@ -13,8 +12,9 @@ import '../data/models.dart';
 import '../state/conn.dart';
 import '../theme/tokens.dart';
 import '../voice/voice_controller.dart';
-import '../widgets/agent_menu.dart';
+import '../state/session_view.dart';
 import '../widgets/common.dart';
+import '../widgets/session_header.dart';
 import '../widgets/voice_dock.dart';
 
 const loftTerminalTheme = TerminalTheme(
@@ -43,7 +43,8 @@ const loftTerminalTheme = TerminalTheme(
   searchHitForeground: C.onPrimary,
 );
 
-/// Figma 7 · Terminal: live `claude attach` over `/ws/term/<id>`. Back only detaches.
+/// Figma 7 · Terminal (and Chat view 5): live `claude attach` over `/ws/term/<id>`.
+/// Back only detaches. The header's toggle switches to Chat.
 class TerminalScreen extends ConsumerStatefulWidget {
   final String id;
   const TerminalScreen({super.key, required this.id});
@@ -153,20 +154,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(children: [
-          SizedBox(
-            height: 64,
-            child: Padding(
-              padding: const EdgeInsets.all(S.s1),
-              child: Row(children: [
-                IconBtn(LucideIcons.arrowLeft, tooltip: 'Back (detaches)', onTap: () => context.pop()),
-                const SizedBox(width: S.s1),
-                Expanded(child: AgentTitle(card: c, status: _status)),
-                if (c.col == Col.needs) IconBtn(LucideIcons.messageSquare, tooltip: 'Question', onTap: () => context.pushReplacement('/agent/${c.id}')),
-                if (card != null) SizedBox(width: 48, height: 48, child: AgentMenuButton(card: card)),
-              ]),
-            ),
-          ),
-          const Divider(height: 1, color: C.border),
+          SessionHeader(card: c, mode: SessionView.terminal, status: _status, showMenu: card != null),
           Expanded(
             child: Stack(children: [
               Padding(

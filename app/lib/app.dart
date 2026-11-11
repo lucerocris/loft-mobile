@@ -3,14 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'notify/watcher.dart';
+import 'data/models.dart';
 import 'screens/agent_screen.dart';
+import 'screens/chat_screen.dart';
 import 'screens/inbox_screen.dart';
 import 'screens/new_task_screen.dart';
 import 'screens/pair_screen.dart';
 import 'screens/projects_screen.dart';
 import 'screens/terminal_screen.dart';
 import 'state/conn.dart';
+import 'state/session_view.dart';
 import 'theme/theme.dart';
+
+/// Chat <-> Terminal: a quick cross-fade, not a new screen sliding in.
+Page<void> _fade(GoRouterState s, Widget child) => CustomTransitionPage(
+      key: s.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 150),
+      reverseTransitionDuration: const Duration(milliseconds: 150),
+      transitionsBuilder: (_, a, _, c) => FadeTransition(opacity: CurvedAnimation(parent: a, curve: Curves.easeOut), child: c),
+    );
 
 final _routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -24,8 +36,22 @@ final _routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/pair', builder: (_, _) => const PairScreen()),
       GoRoute(path: '/', builder: (_, _) => const InboxScreen()),
-      GoRoute(path: '/agent/:id', builder: (_, s) => AgentScreen(id: s.pathParameters['id']!)),
-      GoRoute(path: '/term/:id', builder: (_, s) => TerminalScreen(id: s.pathParameters['id']!)),
+      // An agent opens in the last view used (Chat by default); older Loft = no chat.
+      GoRoute(path: '/agent/:id', pageBuilder: (_, s) {
+        final id = s.pathParameters['id']!;
+        final view = ref.read(sessionViewProvider);
+        Widget w;
+        if (ref.read(chatUnsupportedProvider)) {
+          final needs = ref.read(connProvider).snap.byId(id)?.col == Col.needs;
+          w = needs ? AgentScreen(id: id) : TerminalScreen(id: id);
+        } else {
+          w = view == SessionView.terminal ? TerminalScreen(id: id) : ChatScreen(id: id);
+        }
+        return MaterialPage(key: s.pageKey, child: w);
+      }),
+      GoRoute(path: '/chat/:id', pageBuilder: (_, s) => _fade(s, ChatScreen(id: s.pathParameters['id']!))),
+      GoRoute(path: '/term/:id', pageBuilder: (_, s) => _fade(s, TerminalScreen(id: s.pathParameters['id']!))),
+      GoRoute(path: '/ask/:id', builder: (_, s) => AgentScreen(id: s.pathParameters['id']!)),
       GoRoute(
         path: '/new',
         pageBuilder: (_, s) => MaterialPage(fullscreenDialog: true, child: NewTaskScreen(listen: s.uri.queryParameters['listen'] == '1')),

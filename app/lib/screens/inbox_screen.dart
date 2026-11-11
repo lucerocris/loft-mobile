@@ -66,10 +66,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   void _open(AgentCard c) {
     if (c.isTodo) {
       context.push('/todo/${c.id}');
-    } else if (c.col == Col.needs) {
-      context.push('/agent/${c.id}');
     } else {
-      context.push('/term/${c.id}'); // a working (or finished) agent opens straight into Terminal
+      context.push('/agent/${c.id}'); // Chat or Terminal, whichever was used last
     }
   }
 
