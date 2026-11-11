@@ -14,8 +14,8 @@ import '../voice/voice_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/voice_dock.dart';
 
-/// Figma 5 · New task and 6 · New task · Listening. Voice first: opened from
-/// the inbox's "New task" button it starts listening straight away.
+/// Figma 5 · New task and 6 · New task · Listening. Text first: opens with the
+/// keyboard up; long-pressing the inbox's "New task" button starts listening instead.
 /// With [todoId] it edits and starts an existing Todo instead.
 class NewTaskScreen extends ConsumerStatefulWidget {
   final bool listen;
@@ -303,11 +303,12 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                         TextField(
                           controller: _prompt,
                           focusNode: _focus,
+                          autofocus: !widget.listen && widget.todoId == null,
                           minLines: 3,
                           maxLines: null,
                           textCapitalization: TextCapitalization.sentences,
                           style: _promptStyle,
-                          decoration: const InputDecoration.collapsed(hintText: 'Tap the mic and say it, or type.', hintStyle: TextStyle(fontFamily: F.sans, fontSize: 20, color: C.t3)),
+                          decoration: const InputDecoration.collapsed(hintText: 'Type it, or tap the mic and say it.', hintStyle: TextStyle(fontFamily: F.sans, fontSize: 20, color: C.t3)),
                         ),
                       if (title.isNotEmpty && !listening && todo == null) ...[
                         const SizedBox(height: S.s3),

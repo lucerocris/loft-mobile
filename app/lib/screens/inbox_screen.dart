@@ -227,14 +227,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 elevation: 0,
                 child: InkWell(
                   customBorder: const StadiumBorder(),
-                  onTap: () => context.push('/new?listen=1'),
-                  onLongPress: () => context.push('/new'),
+                  onTap: () => context.push('/new'),
+                  onLongPress: () => context.push('/new?listen=1'),
                   child: const SizedBox(
                     height: 56,
                     child: Padding(
                       padding: EdgeInsets.only(left: 20, right: 24),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(LucideIcons.mic, size: 22, color: C.onPrimary),
+                        Icon(LucideIcons.plus, size: 22, color: C.onPrimary),
                         SizedBox(width: S.s2),
                         Text('New task', style: TextStyle(fontFamily: F.sans, fontSize: 16, fontWeight: FontWeight.w500, color: C.onPrimary)),
                       ]),
