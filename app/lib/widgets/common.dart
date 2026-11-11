@@ -302,7 +302,7 @@ class AgentItem extends StatelessWidget {
         ? const Dot(C.failed)
         : switch (c.col) {
             Col.needs => const Dot(C.needs),
-            Col.running => _Pulse(color: accountColor ?? C.work),
+            Col.running => Pulse(color: accountColor ?? C.work),
             Col.todo => const Dot(C.t3, hollow: true),
             Col.done => Dot(C.t3.withValues(alpha: .6)),
           };
@@ -349,14 +349,14 @@ class AgentItem extends StatelessWidget {
   }
 }
 
-class _Pulse extends StatefulWidget {
+class Pulse extends StatefulWidget {
   final Color color;
-  const _Pulse({required this.color});
+  const Pulse({super.key, required this.color});
   @override
-  State<_Pulse> createState() => _PulseState();
+  State<Pulse> createState() => PulseState();
 }
 
-class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
+class PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
   late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..repeat();
   @override
   void dispose() {
