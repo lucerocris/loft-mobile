@@ -18,7 +18,7 @@ void main() {
   testWidgets('agent item shows title, line and age', (t) async {
     var tapped = false;
     await t.pumpWidget(wrap(AgentItem(card: snap.byId('a1b2c3d4')!, onTap: () => tapped = true)));
-    expect(find.text('Violations · SOP v2.2 diff'), findsOneWidget);
+    expect(find.text('Invoices · export diff'), findsOneWidget);
     expect(find.textContaining('Start steps 0 and 1?'), findsOneWidget);
     await t.tap(find.byType(AgentItem));
     expect(tapped, isTrue);

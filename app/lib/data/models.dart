@@ -85,7 +85,7 @@ class AgentCard {
   bool get isAgent => kind == 'agent';
   bool get noPrompt => detail.isEmpty || detail == '(no prompt yet)';
 
-  /// The folder's last part ("e8-ops-automation"; "home" for ~).
+  /// The folder's last part ("acme-app"; "home" for ~).
   String get folderName => _folderName(cwd);
 
   /// The one line under the title in the inbox.

@@ -19,7 +19,7 @@ class PairScreen extends ConsumerStatefulWidget {
 }
 
 class _PairScreenState extends ConsumerState<PairScreen> {
-  final _host = TextEditingController(text: '100.119.140.39:7717');
+  final _host = TextEditingController();
   final _code = TextEditingController();
   bool _busy = false, _scanning = false;
   String? _error;
@@ -56,7 +56,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
   void _manual() {
     final host = Pairing.normalizeHost(_host.text);
     final code = _code.text.trim();
-    if (host == null) return setState(() => _error = 'Enter the address Loft shows, like 100.119.140.39:7717.');
+    if (host == null) return setState(() => _error = 'Enter the address Loft shows, like 100.64.0.10:7717.');
     if (code.isEmpty) return setState(() => _error = 'Paste the pairing code from Loft on the laptop.');
     final fromUri = Pairing.fromUri(code); // a pasted loft:// link works too
     _connect(fromUri ?? Pairing(host: host, token: code));
@@ -117,7 +117,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
               const SizedBox(height: S.s6),
               const Text('Address', style: TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t2)),
               const SizedBox(height: S.s2),
-              TextField(controller: _host, keyboardType: TextInputType.url, autocorrect: false, style: const TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1), decoration: _input('100.119.140.39:7717')),
+              TextField(controller: _host, keyboardType: TextInputType.url, autocorrect: false, style: const TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1), decoration: _input('100.64.0.10:7717')),
               const SizedBox(height: S.s6),
               const Text('Pairing code', style: TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t2)),
               const SizedBox(height: S.s2),

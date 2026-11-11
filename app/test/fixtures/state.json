@@ -1,18 +1,18 @@
 {"cards": [
- {"kind": "agent", "id": "a1b2c3d4", "name": "Violations · SOP v2.2 diff", "work": true, "col": "needs", "state": "needs input",
-  "detail": "I found why the SOP cards don't fit: only 4 shops are in the data. Plan: (0) check the shops, (1) send a note. Start steps 0 and 1?",
-  "result": "", "cwd": "~/evotech-intern/e8-ops-automation", "project": "e8-ops-automation", "updated": "2026-11-11T11:20:00+00:00", "live": true, "pinned": false, "failed": false, "links": []},
+ {"kind": "agent", "id": "a1b2c3d4", "name": "Invoices · export diff", "work": true, "col": "needs", "state": "needs input",
+  "detail": "I found why the totals don't match: two rows are missing. Plan: (0) re-run the export, (1) send a note. Start steps 0 and 1?",
+  "result": "", "cwd": "~/work/acme-app", "project": "acme-app", "updated": "2026-11-11T11:20:00+00:00", "live": true, "pinned": false, "failed": false, "links": []},
  {"kind": "agent", "id": "e5f6a7b8", "name": "Stock forecast · board", "work": true, "col": "running", "state": "working",
-  "detail": "Writing the board layout into the automation", "result": "", "cwd": "~/evotech-intern/e8-ops-automation", "project": "e8-ops-automation",
+  "detail": "Writing the board layout into the automation", "result": "", "cwd": "~/work/acme-app", "project": "acme-app",
   "updated": "2026-11-11T12:05:00+00:00", "live": true, "pinned": true, "failed": false, "links": []},
- {"kind": "agent", "id": "c9d0e1f2", "name": "Folio · long-press lookup", "work": false, "col": "done", "state": "done",
-  "detail": "Tests pass", "result": "Long-press lookup works on the emulator", "cwd": "~/folio", "project": "folio",
+ {"kind": "agent", "id": "c9d0e1f2", "name": "Reader · long-press lookup", "work": false, "col": "done", "state": "done",
+  "detail": "Tests pass", "result": "Long-press lookup works on the emulator", "cwd": "~/reader", "project": "reader",
   "updated": "2026-11-10T09:00:00+00:00", "live": false, "pinned": false, "failed": false, "links": []},
  {"kind": "agent", "id": "0badf00d", "name": "Broken build", "work": false, "col": "done", "state": "failed",
   "detail": "Gradle failed", "result": "", "cwd": "~", "project": "~", "updated": null, "live": false, "pinned": false, "failed": true, "links": []},
  {"kind": "todo", "id": "t1234abcd", "name": "System · default model", "work": false, "col": "todo", "state": "todo",
-  "detail": "(no prompt yet)", "result": "", "cwd": "~/cagents", "project": "cagents", "updated": "2026-11-11T11:00:00+00:00", "live": false, "pinned": false, "failed": false, "links": []}
+  "detail": "(no prompt yet)", "result": "", "cwd": "~/loft", "project": "loft", "updated": "2026-11-11T11:00:00+00:00", "live": false, "pinned": false, "failed": false, "links": []}
 ],
  "usage": {"work": {"five": "—", "seven": "18", "fiveReset": "", "sevenReset": ""},
            "personal": {"five": "20", "seven": "88", "fiveReset": "", "sevenReset": ""}},
- "dirs": ["~/evotech-intern/e8-ops-automation", "~/study-hub", "~/folio"], "doneDays": 3, "voice": true}
+ "dirs": ["~/work/acme-app", "~/notes", "~/reader"], "doneDays": 3, "voice": true}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A fake Loft server for testing Loft Mobile on the emulator. Never the real one.
 
-Serves the flexible-organization contract (cagents docs/flex-contract.md):
+Serves the flexible-organization contract (Loft docs/flex-contract.md):
 snapshot with accounts, projects, groupBy and card.project, plus the project
 routes. Binds 127.0.0.1 only; the emulator reaches it as 10.0.2.2:<port>.
 Any bearer token is accepted.
@@ -12,7 +12,7 @@ Any bearer token is accepted.
     python3 tools/fake_loft.py --dump freelancer     # print a snapshot (test fixture)
 
 Scenarios: freelancer (2 accounts, 4 client projects, one on both accounts),
-cris (Work + Personal, grouped by account), solo (one account, no projects),
+two-accounts (Work + Personal, grouped by account), solo (one account, no projects),
 legacy (an older Loft: no accounts/projects/groupBy fields).
 """
 import argparse
@@ -77,25 +77,25 @@ SCENARIOS = {
         "assignments": {},
         "dirs": ["~/clients/northwind-app", "~/clients/acme-web", "~/clients/bloom-shop", "~/clients/harbor-api", "~/dotfiles"],
     },
-    "cris": {
+    "two-accounts": {
         "accounts": [acc("work", "Work", "blue", "work@example.com"), acc("personal", "Personal", "green", "me@example.com", True)],
         "usage": {"work": usage(42, 15), "personal": usage(12, 78)},
         "defaultAccount": "personal",
         "groupBy": "account",
         "projects": [
-            {"id": "evotech", "name": "Internship", "color": "blue", "accounts": ["work"], "defaultAccount": "work", "folders": ["~/evotech-intern"]},
+            {"id": "dayjob", "name": "Day job", "color": "blue", "accounts": ["work"], "defaultAccount": "work", "folders": ["~/work"]},
         ],
         "cards": [
-            card("b0000001", "Violations · SOP v2.2 diff", "work", "needs", "~/evotech-intern/e8-ops-automation", "I found why the SOP cards don't fit. Start steps 0 and 1?", 47),
-            card("b0000002", "Top videos · review weights", "work", "needs", "~/evotech-intern/e8-ops-automation", "Token expired: pick route a, b or c", 1),
-            card("b0000003", "Stock forecast · board", "work", "running", "~/evotech-intern/e8-ops-automation", "Writing the board layout into the automation", 0, pinned=True),
-            card("b0000004", "School · study hub docs", "personal", "needs", "~/study-hub", "Start the gap list for Modules 15–17?", 12),
-            card("b0000005", "Folio · long-press lookup", "personal", "running", "~/folio", "Running the emulator tests", 3),
-            card("t0000006", "System · default model", "personal", "todo", "~/cagents", "(no prompt yet)", 55, kind="todo"),
-            card("b0000007", "Loft · board view", "personal", "done", "~/cagents", "", 900, result="Board view merged"),
+            card("b0000001", "Invoices · export diff", "work", "needs", "~/work/ops-tools", "I found why the totals don't match. Fix both?", 47),
+            card("b0000002", "Search · ranking weights", "work", "needs", "~/work/ops-tools", "Token expired: pick route a, b or c", 1),
+            card("b0000003", "Reports · weekly board", "work", "running", "~/work/ops-tools", "Writing the board layout into the automation", 0, pinned=True),
+            card("b0000004", "Notes · course outline", "personal", "needs", "~/notes", "Start the outline for weeks 3–5?", 12),
+            card("b0000005", "Reader · long-press lookup", "personal", "running", "~/reader", "Running the emulator tests", 3),
+            card("t0000006", "System · default model", "personal", "todo", "~/loft", "(no prompt yet)", 55, kind="todo"),
+            card("b0000007", "Loft · board view", "personal", "done", "~/loft", "", 900, result="Board view merged"),
         ],
         "assignments": {},
-        "dirs": ["~/evotech-intern/e8-ops-automation", "~/study-hub", "~/folio", "~/cagents"],
+        "dirs": ["~/work/ops-tools", "~/notes", "~/reader", "~/loft"],
     },
     "solo": {
         "accounts": [acc("main", "Main", "blue", "me@example.com", True)],
@@ -114,7 +114,7 @@ SCENARIOS = {
         "dirs": ["~/code/blog", "~/code/portfolio", "~/code/cli"],
     },
 }
-SCENARIOS["legacy"] = {"legacy": True, **copy.deepcopy(SCENARIOS["cris"])}
+SCENARIOS["legacy"] = {"legacy": True, **copy.deepcopy(SCENARIOS["two-accounts"])}
 
 LOCK = threading.Lock()
 STATE = {"name": "", "s": None, "version": 0}

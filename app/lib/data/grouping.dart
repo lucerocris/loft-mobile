@@ -1,6 +1,6 @@
 /// How the inbox is organized: group by status, account, project, folder or
 /// nothing, plus the filter chips for the active dimension (docs/flex-contract.md
-/// in cagents). Pure logic, no widgets.
+/// in Loft). Pure logic, no widgets.
 library;
 
 import 'models.dart';

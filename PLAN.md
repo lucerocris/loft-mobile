@@ -1,14 +1,11 @@
 # Loft Mobile: build plan
 
-Status: design done, no code yet. Android first (oppo-f11), iOS later.
+Status: design done, no code yet. Android first, iOS later.
 
-Loft Mobile lets Cris prompt and control his Claude Code background agents on the
-Fedora laptop from his phone, across both accounts (Work = Ritchie, Personal =
-lucerocris). It is a phone front end for the existing Loft server
-(`~/cagents/server.py`). It mirrors desktop Loft v2's flows and is built for voice.
+Loft Mobile lets you prompt and control your Claude Code background agents on your
+computer from your phone, across all your accounts. It is a phone front end for the existing Loft server
+(`server.py` in the Loft repo). It mirrors desktop Loft v2's flows and is built for voice.
 
-- Design: Figma `4JZHgYBCfSwFEwFIynSTdv`, page **Mobile**
-  (https://www.figma.com/design/4JZHgYBCfSwFEwFIynSTdv/?node-id=13-2).
   It uses the file's own variables (color/space/radius), Geist + Geist Mono, the
   Agent item, Button and Usage meter components, and the Loft mark. The page adds
   one component, **Voice dock**, with the states Idle / Listening / Transcribing /
@@ -24,7 +21,7 @@ Loft can start shells and agents under both logins, so a stolen token gives
 remote code execution on the laptop. The rules:
 
 - **Never bind 0.0.0.0.** Loft keeps `127.0.0.1:7717` and can *also* listen on
-  the laptop's Tailscale IPv4 only (`tailscale ip -4` = 100.119.140.39), port 7717.
+  the laptop's Tailscale IPv4 only (`tailscale ip -4` = 100.x.y.z), port 7717.
 - **Off by default.** Desktop Loft gets a "Phone access" switch. The setting is
   stored in `~/.config/loft/config.json`, and the tailnet listener runs only while
   it is on.
@@ -49,7 +46,7 @@ remote code execution on the laptop. The rules:
 3. **`RemoteH(H)` subclass for the tailnet listener:**
    - Reject any peer outside `100.64.0.0/10` (`self.client_address[0]`).
      Optionally, allowlist the peer's node through
-     `tailscale whois --json <ip>` (user = Cris, node = oppo-f11).
+     `tailscale whois --json <ip>` (user = you, node = your phone).
    - `_authed()` accepts **only** `Authorization: Bearer <device token>`, compared
      against the stored hashes with `secrets.compare_digest`. No `?t=` query token
      on this listener: Dart's `WebSocket.connect` and our own SSE client can both
@@ -62,7 +59,7 @@ remote code execution on the laptop. The rules:
    - Block localhost-only routes: `/api/pair*` and `/api/devices*`.
 4. **Pairing routes on the localhost listener only**, behind the desktop token:
    - `POST /api/pair {name}` mints `secrets.token_urlsafe(32)`, stores its hash,
-     and returns `{id, uri}` where `uri = loft://pair?h=100.119.140.39:7717&t=<token>&n=fedora`.
+     and returns `{id, uri}` where `uri = loft://pair?h=100.x.y.z:7717&t=<token>&n=laptop`.
      The token is shown once.
    - `GET /api/devices` lists devices (no secrets). `DELETE /api/devices/<id>` revokes one.
    - Revoking also closes that device's open SSE and WebSocket connections. Track
@@ -111,7 +108,7 @@ remote code execution on the laptop. The rules:
   editable.
 - **Live words while listening.** The designs show partial text during recording.
   Android usually won't let `SpeechRecognizer` and `AudioRecord` use the mic at the
-  same time, so test this on the oppo-f11 first. If both can run, use phone speech
+  same time, so test this on a real phone first. If both can run, use phone speech
   for the live preview and Whisper for the final text. If not, there are two
   options: (a) show only the level meter and timer, with text appearing about 1 s
   after release, or (b) add `/ws/voice` on the laptop, which takes ~2 s chunks and
@@ -188,7 +185,7 @@ loft-mobile/
 
 ### Milestones
 
-- **M0, server (needs Cris's OK, it touches `~/cagents`):** tailnet listener,
+- **M0, server (touches the Loft server repo):** tailnet listener,
   device tokens, pair/revoke, QR in desktop Loft, m4a voice, `/api/ping`.
 - **M1, read-only:** paste-pair, secure storage, SSE inbox with filter and usage,
   offline banner.
@@ -198,7 +195,7 @@ loft-mobile/
 - **M4, terminal:** xterm attach, resize, keys bar, mic paste.
 - **M5, comfort:** QR scan, "needs you" notifications, haptics, pinned agents.
 - **M6, ship:** signed release APK (keys kept outside the repo, as in
-  `~/folio-keys`), installed on oppo-f11. iOS comes after Android is in daily use.
+  a local keys folder), installed on the phone. iOS comes after Android is in daily use.
 
 ### Testing
 
@@ -213,15 +210,15 @@ loft-mobile/
   accepts device tokens on loopback. Mic input in the emulator is unreliable, so
   test voice on the phone.
 - **Real phone:** once over USB, `adb tcpip 5555`. After that,
-  `adb connect <oppo-f11 tailnet IP>:5555` and `flutter run -d <ip>:5555` work from
+  `adb connect <phone tailnet IP>:5555` and `flutter run -d <ip>:5555` work from
   anywhere on the tailnet. Check by hand: pairing by QR, revoke kills the session
   within 2 s, a reply lands in the agent, a terminal with keys, and offline →
   online recovery with Tailscale toggled off and on.
-- **Security checks:** `ss -ltnp | grep 7717` shows only 127.0.0.1 and 100.119.140.39.
+- **Security checks:** `ss -ltnp | grep 7717` shows only 127.0.0.1 and 100.x.y.z.
   Requests from a non-tailnet IP and with a wrong token fail. The desktop token is
   refused on the tailnet listener, and `/` and `/api/pair` return 404 there.
 
-## 4. Open decisions for Cris
+## 4. Open decisions
 
 1. **Needs-you notifications.** (a) A foreground service that keeps SSE open
    (simple and private, with a permanent notification and some battery cost);

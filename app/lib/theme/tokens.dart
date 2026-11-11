@@ -1,4 +1,4 @@
-// Design tokens from the Figma file "Agent desk" (4JZHgYBCfSwFEwFIynSTdv),
+// Design tokens from the Figma file "Agent desk",
 // Design system page variables. Dark only.
 import 'package:flutter/widgets.dart';
 

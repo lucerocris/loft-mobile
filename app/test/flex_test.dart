@@ -52,7 +52,7 @@ void main() {
       expect(legacy.supportsProjects, isFalse);
       expect(legacy.projects, isNull);
       expect(legacy.byId('a1b2c3d4')!.projectId, isNull);
-      expect(legacy.byId('a1b2c3d4')!.folderName, 'e8-ops-automation');
+      expect(legacy.byId('a1b2c3d4')!.folderName, 'acme-app');
     });
     test('accounts come from the usage keys and the work flag', () {
       expect(legacy.accounts.map((a) => a.id), ['work', 'personal']);

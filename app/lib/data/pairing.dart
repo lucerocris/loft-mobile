@@ -2,7 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// What the phone needs to reach Loft on the laptop.
 class Pairing {
-  final String host; // "100.119.140.39:7717"
+  final String host; // "100.64.0.10:7717"
   final String token; // device token (secret)
   final String name; // laptop name, e.g. "fedora"
 
@@ -23,7 +23,7 @@ class Pairing {
     return Pairing(host: host, token: t, name: (u.queryParameters['n'] ?? '').isEmpty ? 'fedora' : u.queryParameters['n']!);
   }
 
-  /// "100.119.140.39" -> "100.119.140.39:7717"; rejects junk. Returns null if invalid.
+  /// "100.64.0.10" -> "100.64.0.10:7717"; rejects junk. Returns null if invalid.
   static String? normalizeHost(String raw) {
     var h = raw.trim().replaceFirst(RegExp(r'^https?://'), '').replaceAll(RegExp(r'/+$'), '');
     if (h.isEmpty || h.contains(' ') || h.contains('/')) return null;

@@ -49,7 +49,7 @@ android {
     buildTypes {
         release {
             // Signed with the debug key until the release keystore exists
-            // (keep it outside the repo, like ~/folio-keys). See README.
+            // (keep it outside the repo, like ~/app-keys). See README.
             signingConfig = if (keystoreProps != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }

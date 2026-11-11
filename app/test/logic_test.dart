@@ -56,11 +56,11 @@ void main() {
     });
 
     test('sseEvents over bytes, split inside a UTF-8 character', () async {
-      final bytes = utf8.encode('data: {"name":"Violations · SOP"}\n\n: ping\n\n');
+      final bytes = utf8.encode('data: {"name":"Invoices · export"}\n\n: ping\n\n');
       final cut = bytes.indexOf(0xC2) + 1; // middle of "·"
       final events = await sseEvents(Stream.fromIterable([bytes.sublist(0, cut), bytes.sublist(cut)])).toList();
       expect(events.length, 2);
-      expect(jsonDecode(events.first!.data)['name'], 'Violations · SOP');
+      expect(jsonDecode(events.first!.data)['name'], 'Invoices · export');
       expect(events.last, isNull);
     });
   });
@@ -70,7 +70,7 @@ void main() {
     test('parses cards, usage, dirs', () {
       expect(s.cards.length, 5);
       expect(s.voice, isTrue);
-      expect(s.dirs.first, '~/evotech-intern/e8-ops-automation');
+      expect(s.dirs.first, '~/work/acme-app');
       expect(s.usageOf('work').five, '—');
       expect(s.usageOf('work').fill, closeTo(.18, 1e-9));
       expect(s.usageOf('personal').hot, isTrue); // 88% >= 85%
@@ -109,20 +109,20 @@ void main() {
 
   group('pairing', () {
     test('desktop QR uri', () {
-      final p = Pairing.fromUri('loft://pair?h=100.119.140.39:7717&t=abc-DEF_123&n=fedora')!;
-      expect(p.host, '100.119.140.39:7717');
+      final p = Pairing.fromUri('loft://pair?h=100.64.0.10:7717&t=abc-DEF_123&n=fedora')!;
+      expect(p.host, '100.64.0.10:7717');
       expect(p.token, 'abc-DEF_123');
       expect(p.name, 'fedora');
       expect(p.auth, {'Authorization': 'Bearer abc-DEF_123'});
-      expect(p.ws('/ws/voice').toString(), 'ws://100.119.140.39:7717/ws/voice');
+      expect(p.ws('/ws/voice').toString(), 'ws://100.64.0.10:7717/ws/voice');
     });
     test('rejects other links', () {
       expect(Pairing.fromUri('https://example.com/?h=1&t=2'), isNull);
       expect(Pairing.fromUri('loft://pair?h=100.1.1.1:7717'), isNull);
     });
     test('address normalisation', () {
-      expect(Pairing.normalizeHost('100.119.140.39'), '100.119.140.39:7717');
-      expect(Pairing.normalizeHost('http://100.119.140.39:7719/'), '100.119.140.39:7719');
+      expect(Pairing.normalizeHost('100.64.0.10'), '100.64.0.10:7717');
+      expect(Pairing.normalizeHost('http://100.64.0.10:7719/'), '100.64.0.10:7719');
       expect(Pairing.normalizeHost('fedora:99999'), isNull);
       expect(Pairing.normalizeHost(''), isNull);
     });

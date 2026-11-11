@@ -10,7 +10,7 @@ import 'package:loft/data/outbox.dart';
 import 'package:loft/data/pairing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const pairing = Pairing(host: '100.119.140.39:7719', token: 'tok123', name: 'fedora');
+const pairing = Pairing(host: '100.64.0.10:7719', token: 'tok123', name: 'fedora');
 final fixture = File('test/fixtures/state.json').readAsStringSync();
 
 void main() {
@@ -21,7 +21,7 @@ void main() {
       return http.Response(fixture, 200, headers: {'content-type': 'application/json; charset=utf-8'});
     }));
     final s = await c.state();
-    expect(seen.url.toString(), 'http://100.119.140.39:7719/api/state');
+    expect(seen.url.toString(), 'http://100.64.0.10:7719/api/state');
     expect(seen.headers['Authorization'], 'Bearer tok123');
     expect(s.cards.length, 5);
   });
