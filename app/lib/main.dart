@@ -7,6 +7,7 @@ import 'app.dart';
 import 'data/pairing.dart';
 import 'notify/watcher.dart';
 import 'state/conn.dart';
+import 'state/session_view.dart';
 import 'theme/tokens.dart';
 
 Future<void> main() async {
@@ -19,6 +20,7 @@ Future<void> main() async {
     systemNavigationBarIconBrightness: Brightness.light,
   ));
   final pairing = await PairingStore.load();
+  final view = await loadSessionView();
   String? openCard;
   try {
     await Alerts.initNotifications();
@@ -28,7 +30,7 @@ Future<void> main() async {
     }
   } catch (_) {}
   runApp(ProviderScope(
-    overrides: [pairingProvider.overrideWith((ref) => pairing)],
+    overrides: [pairingProvider.overrideWith((ref) => pairing), sessionViewProvider.overrideWith((ref) => view)],
     child: LoftApp(openCard: pairing == null ? null : openCard),
   ));
 }
