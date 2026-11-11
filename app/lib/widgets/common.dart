@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/grouping.dart';
 import '../data/models.dart';
 import '../theme/tokens.dart';
 
@@ -129,42 +130,98 @@ class Btn extends StatelessWidget {
   }
 }
 
-/// All / Work / Personal (Figma "Account filter").
-class AccountFilter extends StatelessWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-  const AccountFilter({super.key, required this.value, required this.onChanged});
-
+/// How a group or value is marked: account = round dot, project = rounded
+/// square, Unsorted / unknown login = hollow square.
+class MarkDot extends StatelessWidget {
+  final Mark mark;
+  final Color? color;
+  final double size;
+  const MarkDot(this.mark, this.color, {super.key, this.size = 8});
   @override
   Widget build(BuildContext context) {
-    Widget seg(String v, String label, Color? dot) {
-      final on = value == v;
-      return Expanded(
-        child: Semantics(
-          button: true,
-          selected: on,
+    if (mark == Mark.none) return const SizedBox.shrink();
+    final c = color ?? C.t3;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: mark == Mark.dot ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: mark == Mark.dot ? null : BorderRadius.circular(size > 10 ? 4 : 2.5),
+        color: mark == Mark.hollow ? null : c,
+        border: mark == Mark.hollow ? Border.all(color: c, width: 1.5) : null,
+      ),
+    );
+  }
+}
+
+/// A pill chip for the inbox toolbar: Group by and the filter values.
+class PillChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final int? count;
+  final Widget? lead;
+  final Widget? trail;
+  final VoidCallback onTap;
+  const PillChip({super.key, required this.label, required this.onTap, this.selected = false, this.count, this.lead, this.trail});
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        selected: selected,
+        child: Material(
+          color: selected ? C.selected : C.raised,
+          shape: StadiumBorder(side: BorderSide(color: selected ? C.borderStrong : C.border)),
           child: InkWell(
-            onTap: () => onChanged(v),
-            child: Container(
-              color: on ? C.selected : Colors.transparent,
-              alignment: Alignment.center,
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (dot != null) ...[Dot(dot), const SizedBox(width: S.s2)],
-                Text(label, style: TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: on ? C.t1 : C.t2)),
-              ]),
+            customBorder: const StadiumBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              height: 40,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (lead != null) ...[lead!, const SizedBox(width: S.s2)],
+                  Text(label, style: TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: selected ? C.t1 : C.t2)),
+                  if (count != null) ...[const SizedBox(width: S.s2), Text('$count', style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3))],
+                  if (trail != null) ...[const SizedBox(width: 6), trail!],
+                ]),
+              ),
             ),
           ),
         ),
       );
-    }
+}
 
-    return Container(
-      height: 40,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(R.full), border: Border.all(color: C.borderStrong)),
-      child: Row(children: [seg('', 'All', null), seg('work', 'Work', C.work), seg('personal', 'Personal', C.personal)]),
-    );
-  }
+/// Group by chip + the active dimension's filter chips, scrolling sideways.
+class InboxToolbar extends StatelessWidget {
+  final GroupBy groupBy;
+  final List<FilterOption> options;
+  final String filter;
+  final VoidCallback onGroupBy;
+  final ValueChanged<String> onFilter;
+  const InboxToolbar({super.key, required this.groupBy, required this.options, required this.filter, required this.onGroupBy, required this.onFilter});
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        child: Row(children: [
+          PillChip(
+            label: 'By ${groupByLabel(groupBy).toLowerCase()}',
+            lead: const Icon(LucideIcons.listFilter, size: 16, color: C.t2),
+            trail: const Icon(LucideIcons.chevronDown, size: 16, color: C.t3),
+            onTap: onGroupBy,
+          ),
+          if (options.isNotEmpty) Container(width: 1, height: 24, margin: const EdgeInsets.symmetric(horizontal: S.s2), color: C.borderStrong),
+          for (final o in options) ...[
+            PillChip(
+              label: o.label,
+              count: o.count,
+              selected: o.key == filter,
+              lead: o.mark == Mark.none ? null : MarkDot(o.mark, o.color == null ? null : Color(o.color!)),
+              onTap: () => onFilter(o.key),
+            ),
+            const SizedBox(width: S.s2),
+          ],
+        ]),
+      );
 }
 
 /// Figma "Usage meter": a 4 px bar and a mono caption; amber at 85%.
@@ -199,25 +256,44 @@ class UsageMeter extends StatelessWidget {
   }
 }
 
+/// One meter per account, two to a row; labels and colors from the laptop's account list.
 class UsageStrip extends StatelessWidget {
   final Snapshot snap;
   const UsageStrip({super.key, required this.snap});
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(S.s1),
-        child: Row(children: [
-          Expanded(child: UsageMeter(label: 'Work', u: snap.work, color: C.work)),
-          const SizedBox(width: S.s4),
-          Expanded(child: UsageMeter(label: 'Personal', u: snap.personal, color: C.personal)),
-        ]),
-      );
+  Widget build(BuildContext context) {
+    final accs = snap.accounts;
+    if (accs.isEmpty) return const SizedBox.shrink();
+    Widget meter(Account a) => UsageMeter(label: a.label, u: snap.usageOf(a.id), color: Color(a.color));
+    return Padding(
+      padding: const EdgeInsets.all(S.s1),
+      child: Column(children: [
+        for (var i = 0; i < accs.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: S.s3),
+          Row(children: [
+            Expanded(child: meter(accs[i])),
+            if (i + 1 < accs.length) ...[const SizedBox(width: S.s4), Expanded(child: meter(accs[i + 1]))] else if (accs.length > 1) ...[
+              const SizedBox(width: S.s4),
+              const Spacer(),
+            ],
+          ]),
+        ],
+      ]),
+    );
+  }
 }
 
 /// Figma "Agent item": status dot, title + one line, age + account dot.
 class AgentItem extends StatelessWidget {
   final AgentCard card;
   final VoidCallback onTap;
-  const AgentItem({super.key, required this.card, required this.onTap});
+  /// The card's account color; the trailing dot shows only with [showAccount].
+  final Color? accountColor;
+  final bool showAccount;
+  final String accountLabel;
+  /// A project tag before the line (when the inbox isn't grouped by project).
+  final Project? project;
+  const AgentItem({super.key, required this.card, required this.onTap, this.accountColor, this.showAccount = false, this.accountLabel = '', this.project});
 
   @override
   Widget build(BuildContext context) {
@@ -226,14 +302,14 @@ class AgentItem extends StatelessWidget {
         ? const Dot(C.failed)
         : switch (c.col) {
             Col.needs => const Dot(C.needs),
-            Col.running => _Pulse(color: C.account(c.work)),
+            Col.running => _Pulse(color: accountColor ?? C.work),
             Col.todo => const Dot(C.t3, hollow: true),
             Col.done => Dot(C.t3.withValues(alpha: .6)),
           };
     final lineColor = c.failed ? C.failed : (c.col == Col.needs ? C.t2 : C.t3);
     return Semantics(
       button: true,
-      label: '${c.name}, ${c.accountLabel}, ${c.col.name}',
+      label: [c.name, if (showAccount && accountLabel.isNotEmpty) accountLabel, ?project?.name, c.col.name].join(', '),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(R.md),
@@ -249,13 +325,23 @@ class AgentItem extends StatelessWidget {
                   Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.rowTitle.copyWith(color: c.col == Col.done ? C.t2 : C.t1))),
                 ]),
                 const SizedBox(height: 1),
-                Text(c.line.replaceAll('\n', ' '), maxLines: 1, overflow: TextOverflow.ellipsis, style: T.secondary.copyWith(color: lineColor)),
+                Row(children: [
+                  if (project != null) ...[
+                    MarkDot(Mark.square, Color(project!.color), size: 6),
+                    const SizedBox(width: 5),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 120),
+                      child: Text(project!.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.secondary.copyWith(color: C.t2)),
+                    ),
+                    Text(' · ', style: T.secondary.copyWith(color: C.t3)),
+                  ],
+                  Expanded(child: Text(c.line.replaceAll('\n', ' '), maxLines: 1, overflow: TextOverflow.ellipsis, style: T.secondary.copyWith(color: lineColor))),
+                ]),
               ]),
             ),
             const SizedBox(width: 12),
             Text(ago(c.updated), style: T.mono12),
-            const SizedBox(width: 6),
-            Dot(C.account(c.work), size: 6),
+            if (showAccount) ...[const SizedBox(width: 6), Dot(accountColor ?? C.t3, size: 6, hollow: accountColor == null)],
           ]),
         ),
       ),
@@ -302,15 +388,23 @@ class SectionHeader extends StatelessWidget {
   final int count;
   final bool alert;
   final Widget? trailing;
-  const SectionHeader(this.label, this.count, {super.key, this.alert = false, this.trailing});
+  final Widget? lead;
+  /// "· 2 need you" after the count (grouped views).
+  final int needs;
+  const SectionHeader(this.label, this.count, {super.key, this.alert = false, this.trailing, this.lead, this.needs = 0});
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
         child: Row(children: [
-          Text(label, style: T.label.copyWith(color: alert ? C.needs : C.t2)),
-          const SizedBox(width: S.s2),
-          Text('$count', style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
-          const Spacer(),
+          Expanded(
+            child: Row(children: [
+              if (lead != null) ...[lead!, const SizedBox(width: S.s2)],
+              Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.label.copyWith(color: alert ? C.needs : C.t2))),
+              const SizedBox(width: S.s2),
+              Text('$count', style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+              if (needs > 0) Text('  · $needs need${needs == 1 ? 's' : ''} you', style: T.label.copyWith(color: C.needs)),
+            ]),
+          ),
           ?trailing,
         ]),
       );

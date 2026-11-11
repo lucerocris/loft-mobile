@@ -71,10 +71,10 @@ void main() {
       expect(s.cards.length, 5);
       expect(s.voice, isTrue);
       expect(s.dirs.first, '~/evotech-intern/e8-ops-automation');
-      expect(s.work.five, '—');
-      expect(s.work.fill, closeTo(.18, 1e-9));
-      expect(s.personal.hot, isTrue); // 88% >= 85%
-      expect(s.work.hot, isFalse);
+      expect(s.usageOf('work').five, '—');
+      expect(s.usageOf('work').fill, closeTo(.18, 1e-9));
+      expect(s.usageOf('personal').hot, isTrue); // 88% >= 85%
+      expect(s.usageOf('work').hot, isFalse);
     });
     test('sections and filters', () {
       expect(s.section(Col.needs, '').map((c) => c.id), ['a1b2c3d4']);
@@ -83,7 +83,7 @@ void main() {
       expect(s.byId('t1234abcd')!.line, 'Not started');
       expect(s.byId('c9d0e1f2')!.line, 'Long-press lookup works on the emulator');
       expect(s.byId('0badf00d')!.failed, isTrue);
-      expect(s.byId('0badf00d')!.projectLabel, 'home');
+      expect(s.byId('0badf00d')!.folderName, 'home');
       expect(s.needsIds, {'a1b2c3d4'});
     });
     test('ask split', () {

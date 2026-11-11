@@ -151,7 +151,7 @@ class NeedsWatcher extends TaskHandler {
     for (final c in needs.where((c) => !known.contains(c.id))) {
       await Alerts.notifications.show(
         id: c.id.hashCode & 0x7fffffff,
-        title: '${c.accountLabel} · ${c.name}',
+        title: [if (snap.multiAccount) snap.accountLabel(c.account), ?snap.projectOf(c)?.name, c.name].join(' · '),
         body: c.detail.isEmpty ? 'Needs you' : c.detail,
         payload: c.id,
         notificationDetails: const NotificationDetails(

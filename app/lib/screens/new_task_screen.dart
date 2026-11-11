@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/grouping.dart';
 import '../data/loft_client.dart';
 import '../data/models.dart';
 import '../data/outbox.dart';
@@ -28,7 +29,8 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
   final _prompt = TextEditingController();
   final _focus = FocusNode();
   late final VoiceController _voice;
-  String _account = 'work';
+  String _account = ''; // account id, "auto", or "" (not picked yet)
+  String? _project; // project id, null = none
   String? _dir;
   bool _busy = false;
   String? _error;
@@ -43,15 +45,20 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
     _prompt.addListener(() => setState(() {}));
     final t = _todo;
     if (t != null) {
-      _account = t.account;
+      _account = t.account ?? '';
       _dir = t.cwd;
       if (!t.noPrompt) _prompt.text = t.detail;
     } else {
       SharedPreferences.getInstance().then((p) {
         if (!mounted) return;
+        final snap = ref.read(connProvider).snap;
+        final proj = snap.project(p.getString('loft.newProject'));
         setState(() {
-          _account = p.getString('loft.newAcct') ?? 'work';
-          _dir = p.getString('loft.dir.$_account');
+          _project = proj?.id;
+          final saved = p.getString(proj == null ? 'loft.newAcct' : 'loft.newAcct.${proj.id}') ?? '';
+          final choices = accountChoices(snap, proj);
+          _account = saved == autoAccount || choices.any((a) => a.id == saved) ? saved : initialAccountChoice(snap, proj);
+          _dir = p.getString('loft.dir.${proj?.id ?? _account}') ?? proj?.folders.firstOrNull;
         });
       });
     }
@@ -67,26 +74,48 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
   }
 
   List<String> _dirs(Snapshot snap) {
-    final l = <String>[...snap.dirs];
+    // A project's own folders when it has some (Other… adds more), else the recent ones.
+    final proj = snap.project(_project);
+    final l = <String>[...(proj?.folders.isNotEmpty ?? false) ? proj!.folders : snap.dirs.take(4)];
     for (final d in [..._extraDirs, ?_dir]) {
       if (!l.contains(d)) l.insert(0, d);
     }
-    return l.take(5).toList();
+    return l.take(6).toList();
   }
 
-  String? _defaultDir(Snapshot snap) {
-    if (_dir != null) return _dir;
-    final work = snap.dirs.where((d) => d.contains('evotech'));
-    final pers = snap.dirs.where((d) => !d.contains('evotech'));
-    return _account == 'work' ? (work.firstOrNull ?? snap.dirs.firstOrNull) : (pers.firstOrNull ?? snap.dirs.firstOrNull);
+  String? _defaultDir(Snapshot snap) => _dir ?? snap.project(_project)?.folders.firstOrNull ?? snap.dirs.firstOrNull;
+
+  /// The account the task goes to, as sent: "" lets the server pick.
+  String _accountFor(Snapshot snap) {
+    final proj = snap.project(_project);
+    final choices = accountChoices(snap, proj);
+    if (_account == autoAccount) return snap.supportsProjects ? autoAccount : (snap.resolveAccount(autoAccount, project: proj)?.id ?? '');
+    if (choices.any((a) => a.id == _account)) return _account;
+    return initialAccountChoice(snap, proj);
   }
 
   Future<void> _setAccount(String a) async {
     final p = await SharedPreferences.getInstance();
-    await p.setString('loft.newAcct', a);
+    await p.setString(_project == null ? 'loft.newAcct' : 'loft.newAcct.$_project', a);
     setState(() {
       _account = a;
-      _dir = p.getString('loft.dir.$a');
+      if (_project == null) _dir = p.getString('loft.dir.$a') ?? _dir;
+    });
+  }
+
+  Future<void> _setProject(Snapshot snap, String? id) async {
+    final p = await SharedPreferences.getInstance();
+    if (id == null) {
+      await p.remove('loft.newProject');
+    } else {
+      await p.setString('loft.newProject', id);
+    }
+    final proj = snap.project(id);
+    setState(() {
+      _project = id;
+      final saved = p.getString(id == null ? 'loft.newAcct' : 'loft.newAcct.$id') ?? '';
+      _account = saved == autoAccount || accountChoices(snap, proj).any((a) => a.id == saved) ? saved : initialAccountChoice(snap, proj);
+      _dir = proj?.folders.firstOrNull ?? p.getString('loft.dir.${id ?? _account}');
     });
   }
 
@@ -116,6 +145,8 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
     final snap = ref.read(connProvider).snap;
     final prompt = _prompt.text.trim();
     final cwd = _defaultDir(snap) ?? '';
+    final account = _accountFor(snap);
+    final project = snap.supportsProjects ? _project : null;
     if (prompt.isEmpty) return setState(() => _error = start ? 'Say or write what it should do.' : 'Write something to save.');
     if (cwd.isEmpty) return setState(() => _error = 'Pick the project folder it works in.');
     setState(() {
@@ -126,7 +157,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
     final todo = _todo;
     try {
       if (!ref.read(connProvider).online && todo == null) {
-        await ref.read(connProvider.notifier).enqueue(OutboxItem('create', {'prompt': prompt, 'account': _account, 'cwd': cwd, 'start': start}));
+        await ref.read(connProvider.notifier).enqueue(OutboxItem('create', {'prompt': prompt, 'account': account, 'cwd': cwd, 'start': start, 'project': ?project}));
         if (mounted) {
           toast(context, 'Waiting to ${start ? 'start' : 'save'}: the laptop is offline');
           context.pop();
@@ -137,10 +168,10 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       if (todo != null) {
         msg = start ? await client.act(todo.id, 'start', {'prompt': prompt}) : await client.act(todo.id, 'prompt', {'prompt': prompt});
       } else {
-        msg = await client.create(prompt: prompt, account: _account, cwd: cwd, start: start);
+        msg = await client.create(prompt: prompt, account: account, cwd: cwd, start: start, project: project);
       }
       final p = await SharedPreferences.getInstance();
-      await p.setString('loft.dir.$_account', cwd);
+      await p.setString('loft.dir.${project ?? account}', cwd);
       if (!mounted) return;
       toast(context, msg);
       context.pop();
@@ -149,6 +180,45 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Figma Flexible · Mobile E: Project first, then the project's accounts (with
+  /// Auto), each only when it applies.
+  List<Widget> _pickers(Snapshot snap) {
+    final projects = snap.projects ?? const <Project>[];
+    final proj = snap.project(_project);
+    final choices = accountChoices(snap, proj);
+    final showAuto = snap.supportsProjects && choices.length > 1;
+    final auto = snap.resolveAccount(autoAccount, project: proj);
+    final picked = _account.isEmpty ? initialAccountChoice(snap, proj) : _account;
+    Widget label(String t) => Padding(padding: const EdgeInsets.only(bottom: S.s2), child: Text(t, style: T.label));
+    return [
+      if (projects.isNotEmpty) ...[
+        label('Project'),
+        Wrap(spacing: S.s2, runSpacing: S.s2, children: [
+          for (final p in projects)
+            _Chip(label: p.name, selected: p.id == _project, lead: MarkDot(Mark.square, Color(p.color)), onTap: _busy ? null : () => _setProject(snap, p.id)),
+          _Chip(label: 'None', selected: _project == null, onTap: _busy ? null : () => _setProject(snap, null)),
+        ]),
+        const SizedBox(height: S.s5),
+      ],
+      if (choices.length > 1) ...[
+        label('Account'),
+        Wrap(spacing: S.s2, runSpacing: S.s2, children: [
+          if (showAuto)
+            _Chip(label: 'Auto', sub: auto?.label, icon: LucideIcons.gauge, selected: picked == autoAccount, onTap: _busy ? null : () => _setAccount(autoAccount)),
+          for (final a in choices) _Chip(label: a.label, selected: picked == a.id, lead: Dot(Color(a.color)), onTap: _busy ? null : () => _setAccount(a.id)),
+        ]),
+        if (showAuto && picked == autoAccount && auto != null)
+          Padding(
+            padding: const EdgeInsets.only(top: S.s2),
+            child: Text(
+                'Auto uses the account with the most 5h left (${auto.label}${snap.usageOf(auto.id).fivePct == null ? '' : ', ${100 - snap.usageOf(auto.id).fivePct!}%'}).',
+                style: T.caption),
+          ),
+        const SizedBox(height: S.s5),
+      ],
+    ];
   }
 
   @override
@@ -180,14 +250,14 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
               ),
               Expanded(
                 child: ListView(padding: const EdgeInsets.fromLTRB(20, S.s2, 20, S.s4), children: [
-                  if (todo == null) _AccountToggle(value: _account, onChanged: _busy ? null : _setAccount),
-                  if (todo != null)
+                  if (todo == null) ..._pickers(snap),
+                  if (todo != null) ...[
                     Row(children: [
-                      Dot(C.account(todo.work)),
-                      const SizedBox(width: S.s2),
-                      Text('Todo · ${todo.accountLabel}', style: T.label),
+                      if (snap.account(todo.account) != null) ...[Dot(Color(snap.account(todo.account)!.color)), const SizedBox(width: S.s2)],
+                      Text(['Todo', if (snap.multiAccount) snap.accountLabel(todo.account), ?snap.projectOf(todo)?.name].join(' · '), style: T.label),
                     ]),
-                  const SizedBox(height: S.s6),
+                    const SizedBox(height: S.s6),
+                  ],
                   const Text('Folder', style: T.label),
                   const SizedBox(height: S.s2),
                   Wrap(spacing: S.s2, runSpacing: S.s2, children: [
@@ -290,52 +360,14 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
 
 const _promptStyle = TextStyle(fontFamily: F.sans, fontSize: 20, height: 28 / 20, color: C.t1);
 
-class _AccountToggle extends StatelessWidget {
-  final String value;
-  final ValueChanged<String>? onChanged;
-  const _AccountToggle({required this.value, required this.onChanged});
-  @override
-  Widget build(BuildContext context) {
-    Widget seg(String v, String label, String who, Color dot) {
-      final on = value == v;
-      return Expanded(
-        child: Semantics(
-          selected: on,
-          button: true,
-          child: InkWell(
-            onTap: onChanged == null ? null : () => onChanged!(v),
-            child: Container(
-              color: on ? C.selected : Colors.transparent,
-              alignment: Alignment.center,
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (on) ...[const Icon(LucideIcons.check, size: 16, color: C.t1), const SizedBox(width: S.s2)],
-                Dot(dot),
-                const SizedBox(width: S.s2),
-                Text(label, style: TextStyle(fontFamily: F.sans, fontSize: 15, fontWeight: FontWeight.w500, color: on ? C.t1 : C.t2)),
-                const SizedBox(width: S.s2),
-                Text(who, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
-              ]),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      height: 48,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(R.full), border: Border.all(color: C.borderStrong)),
-      child: Row(children: [seg('work', 'Work', 'Ritchie', C.work), seg('personal', 'Personal', 'lucerocris', C.personal)]),
-    );
-  }
-}
-
 class _Chip extends StatelessWidget {
   final String label;
+  final String? sub;
   final bool selected, mono;
   final IconData? icon;
+  final Widget? lead;
   final VoidCallback? onTap;
-  const _Chip({required this.label, this.selected = false, this.mono = false, this.icon, this.onTap});
+  const _Chip({required this.label, this.selected = false, this.mono = false, this.icon, this.lead, this.sub, this.onTap});
   @override
   Widget build(BuildContext context) => Material(
         color: selected ? C.selected : C.raised,
@@ -349,9 +381,11 @@ class _Chip extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: S.s3),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (icon != null) ...[Icon(icon, size: 16, color: selected ? C.t1 : C.t3), const SizedBox(width: S.s2)],
+                if (lead != null) ...[lead!, const SizedBox(width: S.s2)],
                 Text(label,
                     style: TextStyle(
-                        fontFamily: mono ? F.mono : F.sans, fontSize: 13, fontWeight: selected ? FontWeight.w500 : FontWeight.w400, color: selected ? C.t1 : C.t2)),
+                        fontFamily: mono ? F.mono : F.sans, fontSize: mono ? 13 : 14, fontWeight: selected ? FontWeight.w500 : FontWeight.w400, color: selected ? C.t1 : C.t2)),
+                if (sub != null) ...[const SizedBox(width: S.s2), Text(sub!, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3))],
               ]),
             ),
           ),

@@ -72,6 +72,20 @@ class LoftClient {
     }
   }
 
+  Future<dynamic> _send(String method, String path, Object? body, {Duration? t}) async {
+    try {
+      final req = http.Request(method, pairing.http(path))
+        ..headers.addAll(_json)
+        ..body = jsonEncode(body ?? {});
+      final res = await http.Response.fromStream(await _http.send(req).timeout(t ?? timeout));
+      return _decode(res);
+    } on LoftError {
+      rethrow;
+    } catch (e) {
+      throw LoftError('Can\'t reach ${pairing.name}: ${_short(e)}');
+    }
+  }
+
   static String _short(Object e) {
     if (e is TimeoutException) return 'timed out';
     if (e is SocketException) return e.osError?.message ?? e.message;
@@ -90,10 +104,28 @@ class LoftClient {
 
   /// POST /api/cards — Start now or Save to Todo. Returns the server message
   /// ("started 1a2b3c4d …" when started).
-  Future<String> create({required String prompt, required String account, required String cwd, required bool start, String title = ''}) async {
-    final j = await _post('/api/cards', {'prompt': prompt, 'title': title, 'account': account, 'cwd': cwd, 'start': start}, t: const Duration(seconds: 60));
+  /// [account] is an account id, "auto" or "" (let the server pick: the
+  /// project's default, else Loft's). [project] is only sent when set.
+  Future<String> create({required String prompt, required String account, required String cwd, required bool start, String title = '', String? project}) async {
+    final j = await _post(
+        '/api/cards',
+        {'prompt': prompt, 'title': title, 'account': account, 'cwd': cwd, 'start': start, 'project': ?project},
+        t: const Duration(seconds: 60));
     return '${(j as Map)['message']}';
   }
+
+  /// POST `/api/cards/<id>/project`: pin a card to a project by hand; null clears
+  /// it (the folder match applies again).
+  Future<String> setCardProject(String id, String? project) => act(id, 'project', {'project': project});
+
+  Future<Project> createProject(Project p) async {
+    final j = await _post('/api/projects', p.toJson()) as Map;
+    return Project.fromJson(((j['project'] is Map ? j['project'] : j) as Map).cast<String, dynamic>(), 0);
+  }
+
+  Future<void> updateProject(String id, Map<String, dynamic> changes) => _send('PATCH', '/api/projects/$id', changes);
+
+  Future<void> deleteProject(String id) => _send('DELETE', '/api/projects/$id', null);
 
   /// POST `/api/cards/<id>/<action>`: reply, start, stop, archive, pin, rename, account, prompt.
   Future<String> act(String id, String action, [Map<String, dynamic> body = const {}]) async {

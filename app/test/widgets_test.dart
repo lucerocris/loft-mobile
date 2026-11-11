@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:loft/data/grouping.dart';
 import 'package:loft/data/models.dart';
 import 'package:loft/theme/theme.dart';
 import 'package:loft/voice/voice_controller.dart';
@@ -23,9 +24,10 @@ void main() {
     expect(tapped, isTrue);
   });
 
-  testWidgets('account filter reports the picked account', (t) async {
+  testWidgets('filter chips report the picked account', (t) async {
     String? picked;
-    await t.pumpWidget(wrap(AccountFilter(value: '', onChanged: (v) => picked = v)));
+    await t.pumpWidget(wrap(InboxToolbar(
+        groupBy: GroupBy.status, options: filterOptions(snap, FilterDim.account), filter: '', onGroupBy: () {}, onFilter: (v) => picked = v)));
     await t.tap(find.text('Personal'));
     expect(picked, 'personal');
   });

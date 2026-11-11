@@ -20,8 +20,11 @@ final clientProvider = Provider<LoftClient?>((ref) {
   return c;
 });
 
-/// "" = all, "work", "personal". Remembered.
-final filterProvider = StateProvider<String>((ref) => '');
+/// The inbox filter for the active dimension ("" = all). Remembered per dimension.
+final filterProvider = StateProvider<Map<String, String>>((ref) => const {});
+
+/// The phone's own Group by choice (null = the server's default). Remembered.
+final groupByProvider = StateProvider<String?>((ref) => null);
 
 class Conn {
   final Snapshot snap;
@@ -120,22 +123,7 @@ class ConnController extends StateNotifier<Conn> {
     } catch (_) {}
   }
 
-  static Map<String, dynamic> _snapToJson(Snapshot s) => {
-        'cards': [
-          for (final c in s.cards)
-            {
-              'id': c.id, 'kind': c.kind, 'name': c.name, 'work': c.work, 'col': c.col.name, 'state': c.state, 'detail': c.detail,
-              'result': c.result, 'cwd': c.cwd, 'project': c.project, 'updated': c.updated?.toIso8601String(), 'live': c.live,
-              'pinned': c.pinned, 'failed': c.failed,
-            }
-        ],
-        'usage': {
-          'work': {'five': s.work.five, 'seven': s.work.seven},
-          'personal': {'five': s.personal.five, 'seven': s.personal.seven},
-        },
-        'dirs': s.dirs,
-        'voice': s.voice,
-      };
+  static Map<String, dynamic> _snapToJson(Snapshot s) => s.raw;
 
   void _down(String why, {bool unpaired = false}) {
     if (!mounted) return;

@@ -72,7 +72,7 @@ class _SettingsState extends ConsumerState<_Settings> {
                 Text(p?.host ?? '', style: T.mono12),
               ]),
             ),
-            Dot(conn.online ? C.personal : C.failed),
+            Dot(conn.online ? C.ok : C.failed),
             const SizedBox(width: 6),
             Text(conn.online ? 'connected' : 'offline', style: T.caption),
           ]),
@@ -87,6 +87,17 @@ class _SettingsState extends ConsumerState<_Settings> {
                 style: T.secondary),
           ),
           const Divider(height: 1),
+          if (conn.snap.supportsProjects)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(LucideIcons.folderKanban, size: 20, color: C.t2),
+              title: const Text('Projects', style: T.rowTitle),
+              trailing: const Icon(LucideIcons.chevronRight, size: 18, color: C.t3),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/projects');
+              },
+            ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(LucideIcons.refreshCw, size: 20, color: C.t2),

@@ -7,6 +7,7 @@ import 'screens/agent_screen.dart';
 import 'screens/inbox_screen.dart';
 import 'screens/new_task_screen.dart';
 import 'screens/pair_screen.dart';
+import 'screens/projects_screen.dart';
 import 'screens/terminal_screen.dart';
 import 'state/conn.dart';
 import 'theme/theme.dart';
@@ -29,6 +30,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
         path: '/new',
         pageBuilder: (_, s) => MaterialPage(fullscreenDialog: true, child: NewTaskScreen(listen: s.uri.queryParameters['listen'] == '1')),
       ),
+      GoRoute(path: '/projects', builder: (_, s) => ProjectsScreen(startNew: s.uri.queryParameters['new'] == '1', assignCard: s.uri.queryParameters['card'])),
       GoRoute(path: '/todo/:id', pageBuilder: (_, s) => MaterialPage(fullscreenDialog: true, child: NewTaskScreen(todoId: s.pathParameters['id']))),
     ],
   );

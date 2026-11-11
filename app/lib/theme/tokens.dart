@@ -19,7 +19,7 @@ abstract final class C {
   static const needs = Color(0xFFF2B544); // status/needs
   static const failed = Color(0xFFF0685A); // status/failed
 
-  static Color account(bool work) => work ? C.work : C.personal;
+  static const ok = Color(0xFF46C07D); // connected / switch on
 }
 
 abstract final class S {

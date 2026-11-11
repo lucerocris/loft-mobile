@@ -56,7 +56,7 @@ class Outbox {
         if (i.kind == 'reply') {
           await c.reply('${i.data['id']}', '${i.data['text']}');
         } else {
-          await c.create(prompt: '${i.data['prompt']}', account: '${i.data['account']}', cwd: '${i.data['cwd']}', start: i.data['start'] == true);
+          await c.create(prompt: '${i.data['prompt']}', account: '${i.data['account']}', cwd: '${i.data['cwd']}', start: i.data['start'] == true, project: i.data['project'] as String?);
         }
         sent++;
       } on LoftError catch (e) {

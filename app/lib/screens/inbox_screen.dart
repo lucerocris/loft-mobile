@@ -6,11 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/grouping.dart';
 import '../data/loft_client.dart';
 import '../data/models.dart';
 import '../state/conn.dart';
 import '../theme/tokens.dart';
 import '../widgets/common.dart';
+import 'group_sheet.dart';
 import 'settings_sheet.dart';
 
 /// Figma 2 · Inbox and 8 · Inbox · Offline.
@@ -29,7 +31,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((p) {
-      if (mounted) ref.read(filterProvider.notifier).state = p.getString('loft.filter') ?? '';
+      if (!mounted) return;
+      ref.read(groupByProvider.notifier).state = p.getString('loft.groupBy');
+      ref.read(filterProvider.notifier).state = {
+        for (final d in FilterDim.values) d.name: p.getString('loft.filter.${d.name}') ?? '',
+      };
     });
     _notices = ref.read(connProvider.notifier).notices.listen((m) {
       if (mounted) toast(context, m);
@@ -44,9 +50,17 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     super.dispose();
   }
 
-  void _setFilter(String v) {
-    ref.read(filterProvider.notifier).state = v;
-    SharedPreferences.getInstance().then((p) => p.setString('loft.filter', v));
+  void _setFilter(FilterDim d, String v) {
+    ref.read(filterProvider.notifier).state = {...ref.read(filterProvider), d.name: v};
+    SharedPreferences.getInstance().then((p) => p.setString('loft.filter.${d.name}', v));
+  }
+
+  Future<void> _pickGroupBy(Snapshot snap, GroupBy current) async {
+    final picked = await showGroupBySheet(context, snap, current);
+    if (picked == null || !mounted) return;
+    ref.read(groupByProvider.notifier).state = picked.name;
+    final p = await SharedPreferences.getInstance();
+    await p.setString('loft.groupBy', picked.name);
   }
 
   void _open(AgentCard c) {
@@ -89,43 +103,75 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   @override
   Widget build(BuildContext context) {
     final conn = ref.watch(connProvider);
-    final filter = ref.watch(filterProvider);
     final host = ref.watch(pairingProvider)?.name ?? 'fedora';
     final snap = conn.snap;
     final offline = conn.offline;
+    final groupBy = effectiveGroupBy(ref.watch(groupByProvider), snap);
+    final dim = filterDim(groupBy, snap);
+    final options = filterOptions(snap, dim);
+    var filter = ref.watch(filterProvider)[dim.name] ?? '';
+    if (!options.any((o) => o.key == filter)) filter = ''; // the value is gone (deleted project, folder done)
+    final groups = buildGroups(snap, groupBy, filter: filter);
+    final multi = snap.multiAccount;
 
-    Widget row(AgentCard c) => Dismissible(
-          key: ValueKey('row-${c.id}'),
-          confirmDismiss: (d) => _swipe(c, d),
-          background: _swipeBg(LucideIcons.pin, c.pinned ? 'Unpin' : 'Pin', Alignment.centerLeft, C.selected),
-          secondaryBackground: _swipeBg(c.isTodo ? LucideIcons.trash2 : LucideIcons.archive, c.isTodo ? 'Delete' : 'Archive', Alignment.centerRight, const Color(0xFF3A1E1B)),
-          child: AgentItem(card: c, onTap: () => _open(c)),
-        );
+    Widget row(AgentCard c) {
+      final acc = snap.account(c.account);
+      return Dismissible(
+        key: ValueKey('row-${c.id}'),
+        confirmDismiss: (d) => _swipe(c, d),
+        background: _swipeBg(LucideIcons.pin, c.pinned ? 'Unpin' : 'Pin', Alignment.centerLeft, C.selected),
+        secondaryBackground: _swipeBg(c.isTodo ? LucideIcons.trash2 : LucideIcons.archive, c.isTodo ? 'Delete' : 'Archive', Alignment.centerRight, const Color(0xFF3A1E1B)),
+        child: AgentItem(
+          card: c,
+          onTap: () => _open(c),
+          accountColor: acc == null ? null : Color(acc.color),
+          accountLabel: snap.accountLabel(c.account),
+          showAccount: multi && groupBy != GroupBy.account,
+          project: groupBy == GroupBy.project ? null : snap.projectOf(c),
+        ),
+      );
+    }
 
-    final needs = snap.section(Col.needs, filter), running = snap.section(Col.running, filter);
-    final todo = snap.section(Col.todo, filter), done = snap.section(Col.done, filter);
+    Widget header(Group g) {
+      if (g.isDone) {
+        return SectionHeader('Done', g.cards.length,
+            trailing: g.cards.isEmpty
+                ? null
+                : InkWell(
+                    onTap: () => setState(() => _showDone = !_showDone),
+                    child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(_showDone ? 'Hide' : 'Show', style: T.label)),
+                  ));
+      }
+      return SectionHeader(
+        g.label,
+        g.cards.length,
+        alert: g.alert,
+        needs: groupBy == GroupBy.status ? 0 : g.needs,
+        lead: g.mark == Mark.none ? null : MarkDot(g.mark, g.color == null ? null : Color(g.color!)),
+        trailing: groupBy == GroupBy.project && multi && g.accounts.isNotEmpty
+            ? Row(mainAxisSize: MainAxisSize.min, children: [
+                for (final id in g.accounts)
+                  if (snap.account(id) != null) Padding(padding: const EdgeInsets.only(left: 4), child: Dot(Color(snap.account(id)!.color), size: 6)),
+              ])
+            : null,
+      );
+    }
 
+    final active = groups.where((g) => !g.isDone).expand((g) => g.cards);
     final list = <Widget>[
-      if (needs.isNotEmpty) ...[SectionHeader('Needs you', needs.length, alert: true), ...needs.map(row)],
-      if (running.isNotEmpty) ...[SectionHeader('Working', running.length), ...running.map(row)],
-      if (todo.isNotEmpty) ...[SectionHeader('Todo', todo.length), ...todo.map(row)],
-      SectionHeader('Done', done.length,
-          trailing: done.isEmpty
-              ? null
-              : InkWell(
-                  onTap: () => setState(() => _showDone = !_showDone),
-                  child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(_showDone ? 'Hide' : 'Show', style: T.label)),
-                )),
-      if (_showDone) ...done.map(row),
-      if (conn.loaded && needs.isEmpty && running.isEmpty && todo.isEmpty)
-        const Padding(
-          padding: EdgeInsets.fromLTRB(12, 24, 12, 0),
+      for (final g in groups) ...[
+        if (g.label.isNotEmpty) header(g),
+        if (!g.isDone || _showDone) ...g.cards.map(row),
+      ],
+      if (conn.loaded && active.isEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 24, 12, 0),
           child: Column(children: [
-            LoftMark(size: 48, body: C.border, left: C.borderStrong, right: C.borderStrong),
-            SizedBox(height: 12),
-            Text('Nothing needs you', style: TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
-            SizedBox(height: 4),
-            Text('Say what an agent should do next.', style: T.secondary),
+            const LoftMark(size: 48, body: C.border, left: C.borderStrong, right: C.borderStrong),
+            const SizedBox(height: 12),
+            Text(filter.isEmpty ? 'Nothing needs you' : 'Nothing here right now', style: const TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
+            const SizedBox(height: 4),
+            const Text('Say what an agent should do next.', style: T.secondary),
           ]),
         ),
       if (!conn.loaded) const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
@@ -161,7 +207,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   padding: const EdgeInsets.fromLTRB(S.s4, 0, S.s4, 104),
                   children: [
                     if (offline) ...[_OfflineBanner(host: host, last: conn.lastUpdate, queued: conn.queued, unpaired: conn.unpaired, onRetry: () => ref.read(connProvider.notifier).retry()), const SizedBox(height: S.s3)],
-                    AccountFilter(value: filter, onChanged: _setFilter),
+                    InboxToolbar(groupBy: groupBy, options: options, filter: filter, onGroupBy: () => _pickGroupBy(snap, groupBy), onFilter: (v) => _setFilter(dim, v)),
                     const SizedBox(height: S.s3),
                     Opacity(opacity: offline ? .45 : 1, child: UsageStrip(snap: snap)),
                     const SizedBox(height: S.s3),

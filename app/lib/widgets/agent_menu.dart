@@ -3,36 +3,56 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/grouping.dart';
 import '../data/loft_client.dart';
 import '../data/models.dart';
 import '../state/conn.dart';
 import '../theme/tokens.dart';
+import '../screens/group_sheet.dart';
 import 'common.dart';
 
 /// App-bar title for an agent: name, then account dot · Work · project · age.
-class AgentTitle extends StatelessWidget {
+/// (Account only with more than one; project only when it has one.)
+class AgentTitle extends ConsumerWidget {
   final AgentCard card;
   final String? status;
   const AgentTitle({super.key, required this.card, this.status});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = card;
+    final snap = ref.watch(connProvider).snap;
+    final acc = snap.account(c.account);
+    final proj = snap.projectOf(c);
     const sep = Text(' · ', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3));
+    final parts = <Widget>[
+      if (snap.multiAccount)
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Dot(acc == null ? C.t3 : Color(acc.color), size: 6, hollow: acc == null),
+          const SizedBox(width: 6),
+          Text(snap.accountLabel(c.account), style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2)),
+          if (c.pendingAccount != null && c.pendingAccount != c.account)
+            Text(' → ${snap.accountLabel(c.pendingAccount)} next turn', style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.needs)),
+        ]),
+      if (proj != null)
+        Flexible(
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            MarkDot(Mark.square, Color(proj.color), size: 6),
+            const SizedBox(width: 6),
+            Flexible(child: Text(proj.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2))),
+          ]),
+        ),
+      if (status != null)
+        Flexible(child: Text(status!, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)))
+      else ...[
+        if (proj == null) Flexible(child: Text(c.folderName, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.mono12)),
+        Text(ago(c.updated), style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+      ],
+    ];
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.screenTitle),
       const SizedBox(height: 4),
       Row(children: [
-        Dot(C.account(c.work), size: 6),
-        const SizedBox(width: 6),
-        Text(c.accountLabel, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2)),
-        sep,
-        if (status != null)
-          Flexible(child: Text(status!, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)))
-        else ...[
-          Flexible(child: Text(c.projectLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.mono12)),
-          sep,
-          Text(ago(c.updated), style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
-        ],
+        for (final (i, w) in parts.indexed) ...[if (i > 0) sep, w],
       ]),
     ]);
   }
@@ -47,6 +67,8 @@ class AgentMenuButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = card;
     final running = c.col == Col.running;
+    final snap = ref.watch(connProvider).snap;
+    final others = snap.accounts.where((a) => a.id != c.account).toList();
     PopupMenuItem<String> item(String v, IconData i, String label, {bool enabled = true, Color? color}) => PopupMenuItem(
           value: v,
           enabled: enabled,
@@ -63,7 +85,9 @@ class AgentMenuButton extends ConsumerWidget {
       itemBuilder: (_) => [
         if (!c.isTodo) item('pin', c.pinned ? LucideIcons.pinOff : LucideIcons.pin, c.pinned ? 'Unpin' : 'Pin to top'),
         item('rename', LucideIcons.pencil, 'Rename'),
-        item('account', LucideIcons.arrowLeftRight, 'Move to ${c.work ? 'Personal' : 'Work'}', enabled: !running),
+        if (snap.supportsProjects) item('project', LucideIcons.folderInput, 'Move to project…'),
+        if (others.length == 1) item('account', LucideIcons.arrowLeftRight, running ? 'Move to ${others.single.label} after this turn' : 'Move to ${others.single.label}'),
+        if (others.length > 1) item('account', LucideIcons.arrowLeftRight, running ? 'Move to account after this turn…' : 'Move to account…'),
         if (running) item('stop', LucideIcons.square, 'Stop', color: C.failed),
         item('archive', c.isTodo ? LucideIcons.trash2 : LucideIcons.archive, c.isTodo ? 'Delete' : 'Archive', enabled: !running, color: C.failed),
       ],
@@ -89,6 +113,28 @@ Future<void> runAgentAction(BuildContext context, WidgetRef ref, AgentCard c, St
     return;
   }
   if (!context.mounted) return;
+  final snap = ref.read(connProvider).snap;
+  if (a == 'project') {
+    final pick = await showMoveToProjectSheet(context, snap, c);
+    if (pick == null || !context.mounted) return;
+    if (pick == newProjectPick) {
+      context.push('/projects?new=1&card=${c.id}');
+      return;
+    }
+    try {
+      final m = await client.setCardProject(c.id, pick == unsortedKey ? null : pick);
+      if (context.mounted) toast(context, m.isEmpty || m == 'null' ? 'Moved' : m);
+    } on LoftError catch (e) {
+      if (context.mounted) toast(context, e.message, error: true);
+    }
+    return;
+  }
+  if (a == 'account') {
+    final others = snap.accounts.where((x) => x.id != c.account).toList();
+    final String? to = others.length == 1 ? others.single.id : await showMoveToAccountSheet(context, snap, c);
+    if (to == null || to == c.account || !context.mounted) return;
+    body = {'account': to};
+  }
   if (a == 'rename') {
     final ctl = TextEditingController(text: c.name);
     final name = await showDialog<String>(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/grouping.dart';
 import '../data/loft_client.dart';
 import '../data/models.dart';
 import '../data/outbox.dart';
@@ -89,7 +90,10 @@ class _AgentScreenState extends ConsumerState<AgentScreen> {
       await ref.read(clientProvider)!.reply(card.id, t);
       if (!mounted) return;
       toast(context, 'Sent to ${card.name}');
-      final next = ref.read(connProvider).snap.section(Col.needs, ref.read(filterProvider)).where((c) => c.id != card.id).firstOrNull;
+      final snap = ref.read(connProvider).snap;
+      final dim = filterDim(effectiveGroupBy(ref.read(groupByProvider), snap), snap);
+      final filter = ref.read(filterProvider)[dim.name] ?? '';
+      final next = (snap.cards.where((c) => c.col == Col.needs && c.id != card.id && matchesFilter(snap, c, dim, filter)).toList()..sort(byPinThenNewest)).firstOrNull;
       if (next != null) {
         context.pushReplacement('/agent/${next.id}');
       } else {
@@ -139,7 +143,7 @@ class _AgentScreenState extends ConsumerState<AgentScreen> {
           Expanded(
             child: ListView(padding: const EdgeInsets.fromLTRB(20, S.s2, 20, S.s4), children: [
               Row(children: [
-                Dot(asking ? C.needs : (card.failed ? C.failed : C.account(card.work))),
+                Dot(asking ? C.needs : (card.failed ? C.failed : _accColor(ref, card))),
                 const SizedBox(width: S.s2),
                 Text(status, style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: asking ? C.needs : C.t2)),
               ]),
@@ -214,4 +218,9 @@ class _LastOutput extends StatelessWidget {
               ),
         ]),
       );
+}
+
+Color _accColor(WidgetRef ref, AgentCard c) {
+  final a = ref.watch(connProvider).snap.account(c.account);
+  return a == null ? C.t2 : Color(a.color);
 }

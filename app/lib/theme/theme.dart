@@ -47,8 +47,8 @@ ThemeData loftTheme() {
     textSelectionTheme: const TextSelectionThemeData(cursorColor: C.t1, selectionColor: Color(0x4D5B8DFF), selectionHandleColor: C.work),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? C.onPrimary : C.t3),
-      trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? C.personal : C.selected),
-      trackOutlineColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? C.personal : C.borderStrong),
+      trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? C.ok : C.selected),
+      trackOutlineColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? C.ok : C.borderStrong),
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(color: C.t2),
   );

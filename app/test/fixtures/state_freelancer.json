@@ -1,0 +1,281 @@
+{
+ "cards": [
+  {
+   "kind": "agent",
+   "id": "a0000001",
+   "name": "Checkout copy \u00b7 review",
+   "account": "studio",
+   "work": false,
+   "col": "needs",
+   "state": "needs input",
+   "detail": "Two headline options are ready. Which one?",
+   "result": "",
+   "cwd": "~/clients/acme-web",
+   "updated": "2026-11-11T15:27:41.023140+00:00",
+   "live": false,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": "acme",
+   "folder": "~/clients/acme-web"
+  },
+  {
+   "kind": "agent",
+   "id": "a0000002",
+   "name": "Hero images \u00b7 compress",
+   "account": "studio",
+   "work": false,
+   "col": "running",
+   "state": "working",
+   "detail": "Converting 48 images to AVIF",
+   "result": "",
+   "cwd": "~/clients/acme-web",
+   "updated": "2026-11-11T15:39:41.023140+00:00",
+   "live": true,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": "acme",
+   "folder": "~/clients/acme-web"
+  },
+  {
+   "kind": "agent",
+   "id": "a0000003",
+   "name": "Offline sync \u00b7 tests",
+   "account": "overflow",
+   "work": true,
+   "col": "running",
+   "state": "working",
+   "detail": "Running the sync suite",
+   "result": "",
+   "cwd": "~/clients/northwind-app",
+   "updated": "2026-11-11T15:36:41.023140+00:00",
+   "live": true,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": "northwind",
+   "folder": "~/clients/northwind-app"
+  },
+  {
+   "kind": "agent",
+   "id": "a0000004",
+   "name": "Push alerts \u00b7 Android",
+   "account": "studio",
+   "work": false,
+   "col": "running",
+   "state": "working",
+   "detail": "Wiring the notification channel",
+   "result": "",
+   "cwd": "~/clients/northwind-app",
+   "updated": "2026-11-11T15:31:41.023140+00:00",
+   "live": true,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": "northwind",
+   "folder": "~/clients/northwind-app"
+  },
+  {
+   "kind": "todo",
+   "id": "t0000005",
+   "name": "Release notes 2.4",
+   "account": "studio",
+   "work": false,
+   "col": "todo",
+   "state": "todo",
+   "detail": "(no prompt yet)",
+   "result": "",
+   "cwd": "~/clients/northwind-api",
+   "updated": "2026-11-11T14:39:41.023140+00:00",
+   "live": false,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": "northwind",
+   "folder": "~/clients/northwind-api"
+  },
+  {
+   "kind": "agent",
+   "id": "a0000006",
+   "name": "Stripe webhooks \u00b7 retry",
+   "account": "overflow",
+   "work": true,
+   "col": "needs",
+   "state": "needs input",
+   "detail": "Both retry schedules fit Stripe's limits. 3 tries clears most network blips; 5 also covers a short outage. Should failed webhooks retry 3 or 5 times?",
+   "result": "",
+   "cwd": "~/clients/bloom-shop",
+   "updated": "2026-11-11T15:14:41.023140+00:00",
+   "live": false,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": "bloom",
+   "folder": "~/clients/bloom-shop"
+  },
+  {
+   "kind": "todo",
+   "id": "t0000007",
+   "name": "Rate limits \u00b7 docs",
+   "account": "studio",
+   "work": false,
+   "col": "todo",
+   "state": "todo",
+   "detail": "(no prompt yet)",
+   "result": "",
+   "cwd": "~/clients/harbor-api",
+   "updated": "2026-11-11T13:39:41.023140+00:00",
+   "live": false,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": "harbor",
+   "folder": "~/clients/harbor-api"
+  },
+  {
+   "kind": "agent",
+   "id": "a0000008",
+   "name": "Dotfiles \u00b7 cleanup",
+   "account": "studio",
+   "work": false,
+   "col": "running",
+   "state": "working",
+   "detail": "Sorting shell aliases",
+   "result": "",
+   "cwd": "~/dotfiles",
+   "updated": "2026-11-11T15:34:41.023140+00:00",
+   "live": true,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": null,
+   "folder": "~/dotfiles"
+  },
+  {
+   "kind": "agent",
+   "id": "a0000009",
+   "name": "Acme \u00b7 sitemap",
+   "account": "studio",
+   "work": false,
+   "col": "done",
+   "state": "done",
+   "detail": "",
+   "result": "Sitemap regenerated",
+   "cwd": "~/clients/acme-web",
+   "updated": "2026-11-11T05:39:41.023140+00:00",
+   "live": false,
+   "pinned": false,
+   "failed": false,
+   "links": [],
+   "project": "acme",
+   "folder": "~/clients/acme-web"
+  }
+ ],
+ "usage": {
+  "studio": {
+   "five": "31",
+   "seven": "22",
+   "fiveReset": "",
+   "sevenReset": "",
+   "error": null
+  },
+  "overflow": {
+   "five": "64",
+   "seven": "48",
+   "fiveReset": "",
+   "sevenReset": "",
+   "error": null
+  }
+ },
+ "accounts": [
+  {
+   "id": "studio",
+   "label": "Studio",
+   "color": "blue",
+   "hex": "#5B8DFF",
+   "email": "me@studio.dev",
+   "default": true
+  },
+  {
+   "id": "overflow",
+   "label": "Overflow",
+   "color": "purple",
+   "hex": "#A98BFF",
+   "email": "overflow@studio.dev",
+   "default": false
+  }
+ ],
+ "defaultAccount": "studio",
+ "setup": false,
+ "dirs": [
+  "~/clients/northwind-app",
+  "~/clients/acme-web",
+  "~/clients/bloom-shop",
+  "~/clients/harbor-api",
+  "~/dotfiles"
+ ],
+ "doneDays": 3,
+ "voice": false,
+ "projects": [
+  {
+   "id": "acme",
+   "name": "Acme \u00b7 website",
+   "color": "cyan",
+   "accounts": [
+    "studio"
+   ],
+   "defaultAccount": "studio",
+   "folders": [
+    "~/clients/acme-web"
+   ],
+   "hex": "#3EC1D3",
+   "count": 2
+  },
+  {
+   "id": "northwind",
+   "name": "Northwind \u00b7 app",
+   "color": "orange",
+   "accounts": [
+    "studio",
+    "overflow"
+   ],
+   "defaultAccount": "auto",
+   "folders": [
+    "~/clients/northwind-app",
+    "~/clients/northwind-api"
+   ],
+   "hex": "#F2924A",
+   "count": 3
+  },
+  {
+   "id": "bloom",
+   "name": "Bloom \u00b7 shop",
+   "color": "pink",
+   "accounts": [
+    "overflow"
+   ],
+   "defaultAccount": "overflow",
+   "folders": [
+    "~/clients/bloom-shop"
+   ],
+   "hex": "#F17DB8",
+   "count": 1
+  },
+  {
+   "id": "harbor",
+   "name": "Harbor \u00b7 API",
+   "color": "green",
+   "accounts": [
+    "studio"
+   ],
+   "defaultAccount": "studio",
+   "folders": [
+    "~/clients/harbor-api"
+   ],
+   "hex": "#46C07D",
+   "count": 1
+  }
+ ],
+ "groupBy": "project"
+}
