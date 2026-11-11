@@ -38,6 +38,22 @@ void main() {
     expect(body, {'prompt': 'Fix it', 'title': '', 'account': 'work', 'cwd': '~/e8', 'start': true});
   });
 
+  test('upload posts raw bytes with the name and returns the laptop path; 404 = old Loft', () async {
+    late http.Request seen;
+    var status = 200;
+    final c = LoftClient(pairing, client: MockClient((r) async {
+      seen = r;
+      return http.Response(status == 200 ? '{"path":"/home/u/.local/share/loft/uploads/x/my shot.png"}' : '{"error":"not found"}', status);
+    }));
+    expect(await c.upload('my shot.png', [1, 2, 3]), '/home/u/.local/share/loft/uploads/x/my shot.png');
+    expect(seen.url.path, '/api/files');
+    expect(seen.url.queryParameters['name'], 'my shot.png');
+    expect(seen.bodyBytes, [1, 2, 3]);
+    expect(seen.headers['Authorization'], 'Bearer tok123');
+    status = 404;
+    expect(() => c.upload('a', [1]), throwsA(isA<LoftError>().having((e) => e.message, 'message', contains('Update Loft'))));
+  });
+
   test('card actions hit /api/cards/<id>/<action>', () async {
     final paths = <String>[];
     final c = LoftClient(pairing, client: MockClient((r) async {
