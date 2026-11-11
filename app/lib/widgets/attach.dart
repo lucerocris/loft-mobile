@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/loft_client.dart';
@@ -10,6 +11,7 @@ import 'common.dart';
 /// their laptop paths to [field], so the prompt points the agent at them.
 /// Returns false when nothing was attached.
 Future<bool> attachFiles(BuildContext context, LoftClient client, TextEditingController field) async {
+  FocusManager.instance.primaryFocus?.unfocus();
   final type = await showPickerSheet<FileType>(
     context,
     (ctx) => [
@@ -18,9 +20,13 @@ Future<bool> attachFiles(BuildContext context, LoftClient client, TextEditingCon
       OptionRow(lead: const Icon(LucideIcons.folder, size: 20), title: 'Files', onTap: () => Navigator.pop(ctx, FileType.any)),
     ],
   );
+  // Closing the sheet hands focus back to the text field, which raises the
+  // keyboard under the native picker; iOS then leaves it stuck on screen.
+  FocusManager.instance.primaryFocus?.unfocus();
   if (type == null) return false;
   // compatible: iPhone photos arrive as JPEG, not HEIC, which agents can't read.
   final files = await FilePicker.pickFiles(type: type, darwinOptions: const DarwinOptions(assetRepresentationMode: DarwinAssetRepresentationMode.compatible));
+  SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
   if (files.isEmpty || !context.mounted) return false;
   toast(context, files.length == 1 ? 'Sending ${files.single.name}…' : 'Sending ${files.length} files…', duration: const Duration(minutes: 2));
   final paths = <String>[];
