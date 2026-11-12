@@ -80,16 +80,21 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         final m = await client.act(c.id, 'pin');
         if (mounted) toast(context, m);
       } else {
-        if (c.col == Col.running) {
-          toast(context, 'Stop it first, then archive.', error: true);
-          return false;
-        }
+        final running = c.col == Col.running;
         final ok = await confirmDanger(context,
-            title: c.isTodo ? 'Delete this todo?' : 'Archive this agent?',
-            body: c.isTodo ? '"${c.name}" will be removed from Todo.' : '"${c.name}" leaves the inbox. Its session is kept.',
-            action: c.isTodo ? 'Delete' : 'Archive');
+            title: c.isTodo ? 'Delete this todo?' : (running ? 'Stop and archive this agent?' : 'Archive this agent?'),
+            body: c.isTodo
+                ? '"${c.name}" will be removed from Todo.'
+                : '"${c.name}" ${running ? 'stops working now and ' : ''}leaves the inbox. Its session is kept.',
+            action: c.isTodo ? 'Delete' : (running ? 'Stop & archive' : 'Archive'));
         if (!ok) return false;
-        final m = await client.act(c.id, 'archive');
+        if (running) await client.act(c.id, 'stop');
+        var m = await client.act(c.id, 'archive');
+        // The server answers "stop it first" until the stopped worker settles.
+        for (var i = 0; running && m.contains('stop it first') && i < 8; i++) {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          m = await client.act(c.id, 'archive');
+        }
         if (mounted) toast(context, m);
       }
     } on LoftError catch (e) {

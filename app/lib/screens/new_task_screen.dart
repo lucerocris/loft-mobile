@@ -74,16 +74,17 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
   }
 
   List<String> _dirs(Snapshot snap) {
-    // A project's own folders when it has some (Other… adds more), else the recent ones.
+    // Every folder of the picked project (Other… adds more), else the recent ones.
     final proj = snap.project(_project);
-    final l = <String>[...(proj?.folders.isNotEmpty ?? false) ? proj!.folders : snap.dirs.take(4)];
+    final pdirs = proj == null ? const <String>[] : projectDirs(snap, proj);
+    final l = <String>[...pdirs.isNotEmpty ? pdirs : snap.dirs.take(4)];
     for (final d in [..._extraDirs, ?_dir]) {
       if (!l.contains(d)) l.insert(0, d);
     }
-    return l.take(6).toList();
+    return pdirs.isNotEmpty ? l : l.take(6).toList();
   }
 
-  String? _defaultDir(Snapshot snap) => _dir ?? snap.project(_project)?.folders.firstOrNull ?? snap.dirs.firstOrNull;
+  String? _defaultDir(Snapshot snap) => _dir ?? _dirs(snap).firstOrNull;
 
   /// The account the task goes to, as sent: "" lets the server pick.
   String _accountFor(Snapshot snap) {
@@ -115,7 +116,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       _project = id;
       final saved = p.getString(id == null ? 'loft.newAcct' : 'loft.newAcct.$id') ?? '';
       _account = saved == autoAccount || accountChoices(snap, proj).any((a) => a.id == saved) ? saved : initialAccountChoice(snap, proj);
-      _dir = proj?.folders.firstOrNull ?? p.getString('loft.dir.${id ?? _account}');
+      _dir = (proj == null ? null : projectDirs(snap, proj).firstOrNull) ?? p.getString('loft.dir.${id ?? _account}');
     });
   }
 

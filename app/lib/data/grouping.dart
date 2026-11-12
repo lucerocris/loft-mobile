@@ -190,3 +190,22 @@ String initialAccountChoice(Snapshot s, Project? project) {
   if (choices.any((a) => a.id == dflt)) return dflt!;
   return choices.firstOrNull?.id ?? '';
 }
+
+/// Every folder a project covers: its own folders, the repos its agents work in
+/// (a worktree counts as its repo), and recent folders inside one of its folders.
+List<String> projectDirs(Snapshot snap, Project p) {
+  final out = <String>[];
+  void add(String d) {
+    d = d.split('/.claude/worktrees/').first.replaceAll(RegExp(r'/+$'), '');
+    if (d.isNotEmpty && d != '~' && !out.contains(d)) out.add(d);
+  }
+
+  p.folders.forEach(add);
+  for (final c in snap.cards) {
+    if (c.projectId == p.id) add(c.cwd);
+  }
+  for (final d in snap.dirs) {
+    if (p.folders.any((f) => d.startsWith('$f/'))) add(d);
+  }
+  return out;
+}

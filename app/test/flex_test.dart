@@ -47,6 +47,21 @@ void main() {
     });
   });
 
+  test('projectDirs: own folders, its agents\' repos (worktrees folded), subfolders of recents', () {
+    final j = (jsonDecode(File('test/fixtures/state_freelancer.json').readAsStringSync()) as Map).cast<String, dynamic>();
+    final p = (j['projects'] as List).first as Map;
+    p['folders'] = ['~/work/acme'];
+    final cards = j['cards'] as List;
+    for (final c in cards) {
+      (c as Map)['project'] = null;
+    }
+    (cards[0] as Map)..['project'] = p['id']..['folder'] = '~/work/acme-api/.claude/worktrees/fix-x';
+    (cards[1] as Map)..['project'] = p['id']..['folder'] = '~/work/acme';
+    j['dirs'] = ['~/work/acme/web', '~/work/other'];
+    final s = Snapshot.fromJson(j);
+    expect(projectDirs(s, s.project('${p['id']}')!), ['~/work/acme', '~/work/acme-api', '~/work/acme/web']);
+  });
+
   group('old server fallback', () {
     test('no projects field: project UI off, folder name is not a project', () {
       expect(legacy.supportsProjects, isFalse);
