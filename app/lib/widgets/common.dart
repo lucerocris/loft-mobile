@@ -309,7 +309,7 @@ class AgentItem extends StatelessWidget {
     final lineColor = c.failed ? C.failed : (c.col == Col.needs ? C.t2 : C.t3);
     return Semantics(
       button: true,
-      label: [c.name, if (showAccount && accountLabel.isNotEmpty) accountLabel, ?project?.name, c.col.name].join(', '),
+      label: [c.name, ?c.summary, if (showAccount && accountLabel.isNotEmpty) accountLabel, ?project?.name, c.col.name].join(', '),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(R.md),
@@ -324,6 +324,11 @@ class AgentItem extends StatelessWidget {
                   if (c.pinned) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(LucideIcons.pin, size: 13, color: C.t3)),
                   Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.rowTitle.copyWith(color: c.col == Col.done ? C.t2 : C.t1))),
                 ]),
+                if (c.summary != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Text(c.summary!, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.secondary.copyWith(fontSize: 13, color: C.t3)),
+                  ),
                 const SizedBox(height: 1),
                 Row(children: [
                   if (project != null) ...[

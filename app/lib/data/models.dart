@@ -44,6 +44,10 @@ class AgentCard {
   final String id;
   final String kind; // agent | todo
   final String name;
+  /// One short sentence saying what the session is for (Loft writes it on start), or null.
+  final String? summary;
+  /// The Loft Assistant's own session: never listed in the inbox or board.
+  final bool assistant;
   /// Account id (from the laptop's account list). null = a login Loft doesn't know.
   final String? account;
   /// Legacy flag from older servers: true for the non-default account.
@@ -69,6 +73,8 @@ class AgentCard {
     required this.kind,
     required this.name,
     required this.col,
+    this.summary,
+    this.assistant = false,
     this.account,
     this.work = false,
     this.state = '',
@@ -108,6 +114,8 @@ class AgentCard {
       id: '${j['id']}',
       kind: '${j['kind'] ?? 'agent'}',
       name: '${j['name'] ?? ''}',
+      summary: j['summary'] is String && (j['summary'] as String).trim().isNotEmpty ? (j['summary'] as String).trim() : null,
+      assistant: j['assistant'] == true,
       account: j.containsKey('account') ? (j['account'] == null ? null : '${j['account']}') : (work ? 'work' : 'personal'),
       work: work,
       col: _col(j['col'] as String?),
@@ -250,7 +258,10 @@ class Project {
 }
 
 class Snapshot {
+  /// The cards the inbox and board show (the assistant's card is never one of them).
   final List<AgentCard> cards;
+  /// The Loft Assistant's card (`assistant: true`), when it has a session.
+  final AgentCard? assistant;
   final List<Account> accounts;
   final Map<String, UsageWindow> usage; // by account id
   final String? defaultAccount;
@@ -265,6 +276,7 @@ class Snapshot {
 
   const Snapshot({
     this.cards = const [],
+    this.assistant,
     this.accounts = const [],
     this.usage = const {},
     this.defaultAccount,
@@ -282,7 +294,8 @@ class Snapshot {
     final usage = {for (final e in usageJ.entries) e.key: UsageWindow.fromJson((e.value as Map?)?.cast<String, dynamic>())};
     final projJ = j['projects'];
     final hasProjects = projJ is List;
-    final cards = [for (final c in (j['cards'] as List? ?? const [])) AgentCard.fromJson((c as Map).cast<String, dynamic>(), projects: hasProjects)];
+    final all = [for (final c in (j['cards'] as List? ?? const [])) AgentCard.fromJson((c as Map).cast<String, dynamic>(), projects: hasProjects)];
+    final cards = [for (final c in all) if (!c.assistant) c];
     var accounts = <Account>[];
     final accJ = j['accounts'];
     if (accJ is List) {
@@ -296,6 +309,7 @@ class Snapshot {
     }
     return Snapshot(
       cards: cards,
+      assistant: all.where((c) => c.assistant).firstOrNull,
       accounts: accounts,
       usage: usage,
       defaultAccount: j['defaultAccount'] is String ? j['defaultAccount'] as String : null,
@@ -310,11 +324,12 @@ class Snapshot {
   bool get supportsProjects => projects != null;
   bool get multiAccount => accounts.length > 1;
 
+  /// A card by id; the assistant's card too (its own screen looks it up).
   AgentCard? byId(String id) {
     for (final c in cards) {
       if (c.id == id) return c;
     }
-    return null;
+    return assistant?.id == id ? assistant : null;
   }
 
   Account? account(String? id) {

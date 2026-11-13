@@ -62,6 +62,10 @@ class SessionHeader extends ConsumerWidget {
           Expanded(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(card.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.screenTitle),
+              if (card.summary != null) ...[
+                const SizedBox(height: 2),
+                Text(card.summary!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+              ],
               const SizedBox(height: 4),
               Row(children: sub),
             ]),

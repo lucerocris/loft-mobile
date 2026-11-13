@@ -334,27 +334,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with PromptActions {
 
   Widget _pad(Widget w) => Padding(padding: const EdgeInsets.fromLTRB(S.s4, S.s4, S.s4, 0), child: w);
 
-  Widget _row(ChatRow r, PendingPrompt? pending, AgentCard card, ChatItem? open) {
-    switch (r) {
-      case ToolsRow(:final tools):
-        // The call waiting on a permission prompt is in the card; keep its row, no spinner.
-        return ToolSteps(
-          key: ValueKey(r.key),
-          tools: tools,
-          resultFor: _log.resultFor,
-          live: card.col == Col.running ? open?.tool : null,
-        );
-      case MsgRow(:final item):
-        return switch (item.kind) {
-          ChatKind.user => UserBubble(item, key: ValueKey(item.id)),
-          ChatKind.assistant => SelectionArea(key: ValueKey(item.id), child: Markdown(item.text)),
-          ChatKind.note => NoteRow(item.text, key: ValueKey(item.id)),
-          ChatKind.question => pending?.tool == item.tool && card.col == Col.needs ? const SizedBox.shrink() : AskedRow(item, _log.results[item.tool], key: ValueKey(item.id)),
-          ChatKind.tool => PlanBlock(item.plan, key: ValueKey(item.id)),
-          _ => const SizedBox.shrink(),
-        };
-    }
-  }
+  Widget _row(ChatRow r, PendingPrompt? pending, AgentCard card, ChatItem? open) =>
+      ChatRowView(log: _log, row: r, pending: pending, asking: card.col == Col.needs, running: card.col == Col.running, open: open);
 
   Color _accColor(AgentCard c) {
     final a = ref.read(connProvider).snap.account(c.account);

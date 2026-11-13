@@ -28,6 +28,14 @@ account (Loft docs/browser-protocol.md: {accounts: [{account, label, hex, sites,
 chrome}); WebSocket /ws/browser/<card id> and /ws/sites/<account> stream generated JPEG frames
 (needs Pillow) and answer mouse, key, nav, site, sites, back, reload and viewport like
 loft/browser.py's Viewer. The legacy scenario 404s all of these.
+
+Titles and the Loft Assistant (loft-plans/assistant-contract.md): cards carry `summary`;
+a started task gets a title + summary ~2 s later; POST /api/cards/<id>/rename {title?, summary?}
+and /describe {keepTitle?}. POST /api/bulk {action: archive|stop, filter: done|idle|all, ids?}.
+GET/POST /api/assistant and POST /api/assistant/reset: a fake assistant (its card is in the
+snapshot with `assistant: true`) that answers in the messages format after ~1.5 s and really
+does the work: "archive ... done", "stop ..." (asks to confirm with a picker first),
+"what needs me", "start a task: <prompt>". The legacy scenario 404s these too.
 """
 import argparse
 import base64
@@ -57,11 +65,28 @@ def acc(id, label, color, email="", default=False):
     return {"id": id, "label": label, "color": color, "hex": HEX[color], "email": email, "default": default}
 
 
-def card(id, name, account, col, cwd, detail="", minutes=5, kind="agent", pinned=False, failed=False, result=""):
-    return {"kind": kind, "id": id, "name": name, "account": account, "work": False, "col": col,
+def card(id, name, account, col, cwd, detail="", minutes=5, kind="agent", pinned=False, failed=False, result="", summary=None):
+    return {"kind": kind, "id": id, "name": name, "summary": summary or SUMMARIES.get(id), "account": account, "work": False, "col": col,
             "state": {"needs": "needs input", "running": "working", "todo": "todo", "done": "done"}[col],
             "detail": detail, "result": result, "cwd": cwd, "updated": ago(minutes), "live": col == "running",
             "pinned": pinned, "failed": failed, "links": []}
+
+
+SUMMARIES = {   # what Loft's small model writes on start (contract §1); some cards have none
+    "a0000001": "Pick the checkout headline for the Acme site before launch.",
+    "a0000002": "Shrink the hero images so the home page loads faster.",
+    "a0000003": "Get the offline sync tests passing on Northwind's app.",
+    "a0000004": "Wire Android push notifications for order updates.",
+    "a0000006": "Make Bloom's Stripe webhooks retry instead of dropping orders.",
+    "a0000009": "Regenerate the Acme sitemap after the new pages.",
+    "b0000001": "Find why the invoice export totals don't match the ledger.",
+    "b0000003": "Build the weekly reports board from the ticket data.",
+    "b0000005": "Long-press a word in the reader to look it up.",
+    "b0000007": "Add a board view to Loft next to the inbox.",
+    "c0000001": "Fix the blog's RSS feed so readers stop showing wrong dates.",
+    "c0000002": "Add a dark mode to the portfolio site.",
+    "c0000005": "Resize the blog's images for faster pages.",
+}
 
 
 def usage(five, seven):
@@ -215,6 +240,8 @@ def _step(cid, n, step, tool_ids, now=False):
 
 
 def build_messages(c):
+    if c.get("assistant"):
+        return {"items": [], "t0": time.time(), "tools": [], "live": 0}
     cid, prompt = c["id"], c.get("detail") or c["name"]
     items, tools, n = [], [], 0
 
@@ -264,7 +291,7 @@ def messages(c, q):
     m = MSGS.get(c["id"])
     if m is None:
         m = MSGS[c["id"]] = build_messages(c)
-    if c["col"] == "running":   # one live step every 4 s while it works
+    if c["col"] == "running" and not c.get("assistant"):   # one live step every 4 s while it works
         due = int((time.time() - m["t0"]) / 4)
         while m["live"] < due:
             st = LIVE_STEPS[m["live"] % len(LIVE_STEPS)]
@@ -342,6 +369,174 @@ def reply_message(c, text):
     c["col"], c["state"], c["detail"], c["live"] = "running", "working", "Working on your reply", True
 
 
+# ------------------------------------------------------------------ titles, bulk, assistant
+def derive_title(prompt):
+    first = prompt.strip().split(". ")[0]
+    words = [w for w in first.replace(":", " ").split() if w]
+    while words and words[0].lower() in ("please", "can", "you", "could", "start", "a", "task"):
+        words.pop(0)
+    words = words[:6]
+    while len(words) > 2 and words[-1].lower() in ("the", "a", "an", "to", "of", "for", "and", "with", "in", "on"):
+        words.pop()
+    t = " ".join(words).rstrip(".!?,")
+    return (t[:1].upper() + t[1:]) if t else "New task"
+
+
+def describe_prompt(prompt):
+    """The fake 'small model': {title, summary} from a prompt (contract §1)."""
+    first = (prompt or "").strip().split(".")[0]
+    words = first.split()
+    summary = " ".join(words[:14]).rstrip(",;:") + ("." if words else "")
+    return {"title": derive_title(prompt or ""), "summary": (summary[:1].upper() + summary[1:]) if summary else None}
+
+
+def bulk(s, body):
+    """POST /api/bulk: {action: archive|stop, filter: done|idle|all, ids?} -> {message, count, ids}."""
+    action, flt, ids = body.get("action"), body.get("filter") or "done", body.get("ids")
+    if action not in ("archive", "stop"):
+        return 400, {"message": "action must be archive or stop"}
+    agents = [c for c in s["cards"] if c["kind"] == "agent"]
+    if isinstance(ids, list):
+        pick = [c for c in agents if c["id"] in ids]
+    elif flt == "done":
+        pick = [c for c in agents if c["col"] == "done"]
+    elif flt == "idle":
+        pick = [c for c in agents if c["col"] in ("done", "needs")]
+    else:
+        pick = list(agents)
+    if action == "archive":
+        pick = [c for c in pick if c["col"] != "running"]
+        for c in pick:
+            s["cards"].remove(c)
+        msg = f"Archived {len(pick)} agent{'s' if len(pick) != 1 else ''}"
+    else:
+        pick = [c for c in pick if c["col"] == "running"]
+        for c in pick:
+            c.update(col="done", state="stopped", live=False, result="Stopped from the phone", updated=datetime.now(timezone.utc).isoformat())
+        msg = f"Stopped {len(pick)} agent{'s' if len(pick) != 1 else ''}"
+    return 200, {"message": msg, "count": len(pick), "ids": [c["id"] for c in pick]}
+
+
+def assistant_card(s):
+    a = s.get("assistant")
+    if a is None:
+        aid = "as" + secrets.token_hex(3)
+        a = s["assistant"] = card(aid, "Loft Assistant", s["defaultAccount"], "done", "~/.loft/assistant", "", 0)
+        a.update(state="idle", summary="Operates Loft for you.", assistant=True)
+    return a
+
+
+def _asay(a, kind, **kw):
+    m = MSGS.setdefault(a["id"], build_messages({**a, "assistant": True}))
+    m["items"].append(_it(a["id"], len(m["items"]), kind, now=True, **kw))
+    return m
+
+
+def _atool(a, name, title, detail, result, ok=True):
+    m = MSGS.setdefault(a["id"], build_messages({**a, "assistant": True}))
+    tid = f"toolu_{a['id']}_{len(m['items'])}"
+    _asay(a, "tool", tool=tid, name=name, title=title, detail=detail)
+    lines = result.splitlines() or [""]
+    _asay(a, "result", ok=ok, preview="\n".join(lines[:4]), lines=len(lines), text=result, cut=False, **{"for": tid})
+
+
+def _aidle(a, needs_detail=None):
+    a.update(col="needs" if needs_detail else "done", state="needs input" if needs_detail else "idle",
+             detail=needs_detail or "", live=bool(needs_detail), updated=datetime.now(timezone.utc).isoformat())
+
+
+def assistant_think(text):
+    """The fake assistant: does what the message asks with Loft's tools, then says so."""
+    with LOCK:
+        s = STATE["s"]
+        a = s.get("assistant")
+        if a is None:
+            return
+        t = text.lower()
+        agents = [c for c in s["cards"] if c["kind"] == "agent"]
+        if "archive" in t:
+            code, r = bulk(s, {"action": "archive", "filter": "all" if "everything" in t and "done" not in t else "done"})
+            _atool(a, "mcp__loft__bulk", "Archive everything that's done", "bulk archive, filter=done", r["message"])
+            _asay(a, "assistant", text=(f"Archived **{r['count']}** done agent{'s' if r['count'] != 1 else ''}. Their sessions are kept."
+                                        if r["count"] else "Nothing was done, so there was nothing to archive."))
+            _aidle(a)
+        elif "stop" in t:
+            running = [c for c in agents if c["col"] == "running"]
+            _atool(a, "mcp__loft__list_cards", "Running agents", "list_cards col=running",
+                   "\n".join(f"{c['id']}  {c['name']}" for c in running) or "(none)")
+            if not running:
+                _asay(a, "assistant", text="Nothing is running right now.")
+                _aidle(a)
+            else:
+                q = f"Stop {len(running)} running agent{'s' if len(running) != 1 else ''}?"
+                _asay(a, "assistant", text="These are working now:\n\n" + "\n".join(f"- {c['name']}" for c in running))
+                _asay(a, "question", tool=f"toolu_{a['id']}_ask{len(MSGS[a['id']]['items'])}", questions=[
+                    {"question": q, "header": "Stop", "multi": False,
+                     "options": [{"label": "Stop them", "description": "They keep their sessions; reply later to resume"},
+                                 {"label": "Cancel", "description": "Leave them running"}]}])
+                _aidle(a, q)
+        elif "need" in t:
+            needs = [c for c in agents if c["col"] == "needs"]
+            _atool(a, "mcp__loft__list_cards", "Cards that need you", "list_cards col=needs",
+                   "\n".join(f"{c['id']}  {c['name']}" for c in needs) or "(none)")
+            if needs:
+                body = "\n".join(f"- **{c['name']}**: {c['detail']}" for c in needs)
+                _asay(a, "assistant", text=f"{len(needs)} need{'s' if len(needs) == 1 else ''} you:\n\n{body}")
+            else:
+                _asay(a, "assistant", text="Nothing needs you right now.")
+            _aidle(a)
+        elif t.startswith("start") or "start a task" in t or t.startswith("new task"):
+            prompt = text.split(":", 1)[1].strip() if ":" in text else text
+            if not prompt or prompt.lower() in ("start a task", "start a task…"):
+                _asay(a, "assistant", text="Sure. What should it do, and in which folder?")
+                _aidle(a)
+                return
+            d = describe_prompt(prompt)
+            cid = secrets.token_hex(4)
+            low = prompt.lower()
+            cwd = next((d for d in s["dirs"] if os.path.basename(d).split("-")[0] in low), (s["dirs"] or ["~"])[0])
+            s["cards"].append(card(cid, d["title"], s["defaultAccount"], "running", cwd, prompt, 0, summary=d["summary"]))
+            label = next(x["label"] for x in s["accounts"] if x["id"] == s["defaultAccount"])
+            _atool(a, "mcp__loft__start_task", d["title"], f"start_task cwd={cwd}", f"started {cid} on {label}")
+            _asay(a, "assistant", text=f"Started **{d['title']}** in `{cwd}` on {label}.\n\n{d['summary'] or ''}")
+            _aidle(a)
+        else:
+            _asay(a, "assistant", text=("I run Loft for you. I can start tasks, stop or archive agents, rename them, "
+                                        "and tell you what needs you. What should I do?"))
+            _aidle(a)
+        bump()
+
+
+def describe_later(cid, keep_title):
+    """Loft asks a small model for {title, summary} a few seconds after start."""
+    with LOCK:
+        c = find_card(STATE["s"], cid)
+        if c is None or STATE["s"].get("legacy"):
+            return
+        d = describe_prompt(c.get("detail") or c["name"])
+        if not keep_title:
+            c["name"] = d["title"]
+        c["summary"] = d["summary"]
+        bump()
+
+
+def assistant_answered(a, choice_text):
+    """After the stop confirmation is answered."""
+    time.sleep(1.0)
+    with LOCK:
+        s = STATE["s"]
+        if s.get("assistant") is not a:
+            return
+        if "Stop them" in choice_text:
+            code, r = bulk(s, {"action": "stop", "filter": "all"})
+            _atool(a, "mcp__loft__bulk", "Stop all running agents", "bulk stop, filter=all", r["message"])
+            _asay(a, "assistant", text=f"Stopped **{r['count']}**. Reply to any of them later to pick it up again.")
+        else:
+            _asay(a, "assistant", text="OK, I left them running.")
+        _aidle(a)
+        bump()
+
+
 LOCK = threading.Lock()
 STATE = {"name": "", "s": None, "version": 0}
 LOG = []
@@ -357,6 +552,14 @@ def load(name):
 
 def bump():
     STATE["version"] += 1
+
+
+def find_card(s, cid):
+    c = next((c for c in s["cards"] if c["id"] == cid), None)
+    a = s.get("assistant")
+    if c is None and a is not None and a["id"] == cid:
+        return a
+    return c
 
 
 def card_project(s, c):
@@ -377,7 +580,7 @@ def snapshot():
         # Older Loft: work flag, usage keyed work/personal, project = folder name.
         cards = []
         for c in s["cards"]:
-            c2 = {k: v for k, v in c.items() if k != "account"}
+            c2 = {k: v for k, v in c.items() if k not in ("account", "summary")}
             c2["work"] = c["account"] == "work"
             c2["project"] = os.path.basename(c["cwd"]) or "~"
             cards.append(c2)
@@ -389,6 +592,9 @@ def snapshot():
         c2["project"] = card_project(s, c)
         c2["folder"] = c["cwd"]
         cards.append(c2)
+    a = s.get("assistant")
+    if a is not None:
+        cards.append({**a, "assistant": True, "work": False, "project": None, "folder": a["cwd"]})
     projects = []
     for p in s["projects"]:
         n = sum(1 for c in cards if c["project"] == p["id"] and c["col"] != "done")
@@ -706,6 +912,9 @@ class H(BaseHTTPRequestHandler):
         self._json(401, {"error": "not paired"})
         return False
 
+    def _legacy_404_quiet(self):
+        return bool(STATE["s"].get("legacy"))
+
     def _legacy_404(self):
         if STATE["s"].get("legacy"):
             self._json(404, {"error": "not found"})
@@ -728,7 +937,7 @@ class H(BaseHTTPRequestHandler):
             with LOCK:
                 if self._legacy_404():
                     return
-                c = next((c for c in STATE["s"]["cards"] if c["id"] == parts[2]), None)
+                c = find_card(STATE["s"], parts[2])
                 if c is None:
                     return self._json(404, {"error": "not found"})
                 if c["kind"] == "todo":
@@ -737,6 +946,13 @@ class H(BaseHTTPRequestHandler):
                 return self._json(200, messages(c, {k: v[-1] for k, v in parse_qs(url.query).items()}))
         if self.path == "/__log":
             return self._json(200, LOG[-50:])
+        if url.path == "/api/assistant":
+            with LOCK:
+                if self._legacy_404():
+                    return
+                a = STATE["s"].get("assistant")
+                return self._json(200, {"id": a["id"] if a else None, "card": {**a, "assistant": True} if a else None,
+                                        "account": STATE["s"]["defaultAccount"], "running": bool(a and a["col"] == "running")})
         if url.path == "/api/fs":
             with LOCK:
                 if self._legacy_404():
@@ -807,6 +1023,31 @@ class H(BaseHTTPRequestHandler):
             return self._json(200, {"scenario": parts[1]})
         with LOCK:
             s = STATE["s"]
+            if self.path in ("/api/bulk", "/api/assistant", "/api/assistant/reset") and self._legacy_404():
+                return
+            if self.path == "/api/bulk":
+                code, r = bulk(s, body)
+                if code == 200:
+                    bump()
+                return self._json(code, r)
+            if self.path == "/api/assistant":
+                msg = (body.get("message") or "").strip()
+                if not msg:
+                    return self._json(400, {"message": "Say what Loft should do."})
+                a = assistant_card(s)
+                MSGS.setdefault(a["id"], build_messages(a))
+                _asay(a, "user", text=msg)
+                a.update(col="running", state="working", detail="Working on it", live=True, updated=datetime.now(timezone.utc).isoformat())
+                bump()
+                threading.Timer(1.5, assistant_think, args=(msg,)).start()
+                return self._json(200, {"id": a["id"], "message": "Sent"})
+            if self.path == "/api/assistant/reset":
+                a = s.pop("assistant", None)
+                if a is not None:
+                    MSGS.pop(a["id"], None)
+                s["assistant"] = None
+                bump()
+                return self._json(200, {"message": "New conversation"})
             if self.path == "/api/projects":
                 if self._legacy_404():
                     return
@@ -825,6 +1066,8 @@ class H(BaseHTTPRequestHandler):
                 title = body.get("title") or (body.get("prompt") or "").split(".")[0][:40]
                 s["cards"].append(card(cid, title, account, "running" if start else "todo", cwd, body.get("prompt") or "", 0,
                                        kind="agent" if start else "todo"))
+                if start:
+                    threading.Timer(2.0, describe_later, args=(cid, bool(body.get("title")))).start()
                 if project:
                     s["assignments"][cid] = project["id"]
                 bump()
@@ -832,7 +1075,7 @@ class H(BaseHTTPRequestHandler):
                 return self._json(200, {"message": f"{'started ' + cid if start else 'Added to Todo'} on {label}", "account": account})
             if len(parts) == 4 and parts[:2] == ["api", "cards"]:
                 cid, action = parts[2], parts[3]
-                c = next((c for c in s["cards"] if c["id"] == cid), None)
+                c = find_card(s, cid)
                 if c is None:
                     return self._json(404, {"message": "That card is gone"})
                 if action == "project":
@@ -855,7 +1098,8 @@ class H(BaseHTTPRequestHandler):
                     c["account"] = body["account"]
                     bump()
                 if action == "archive":
-                    s["cards"].remove(c)
+                    if c in s["cards"]:
+                        s["cards"].remove(c)
                     bump()
                 if action == "answer":
                     if self._legacy_404():
@@ -863,7 +1107,30 @@ class H(BaseHTTPRequestHandler):
                     code, payload = answer(c, body)
                     if code == 200:
                         bump()
+                        if c.get("assistant"):
+                            said = MSGS[c["id"]]["items"][-1]["text"]
+                            c["detail"] = "Working on it"
+                            threading.Thread(target=assistant_answered, args=(c, said), daemon=True).start()
                     return self._json(code, payload)
+                if action == "rename":
+                    title = (body.get("title") or body.get("name") or "").strip()
+                    if "summary" in body and not self._legacy_404_quiet():
+                        c["summary"] = (body.get("summary") or "").strip() or None
+                    if title:
+                        c["name"] = title
+                    if not title and "summary" not in body:
+                        return self._json(400, {"message": "A name can't be empty."})
+                    bump()
+                    return self._json(200, {"message": "renamed"})
+                if action == "describe":
+                    if self._legacy_404():
+                        return
+                    d = describe_prompt(c.get("detail") if c.get("detail") not in ("", "(no prompt yet)") else c["name"])
+                    if not body.get("keepTitle"):
+                        c["name"] = d["title"]
+                    c["summary"] = d["summary"]
+                    bump()
+                    return self._json(200, {"title": c["name"], "summary": c["summary"], "message": "described"})
                 if action == "reply" and (body.get("text") or "").strip():
                     reply_message(c, body["text"].strip())
                     bump()

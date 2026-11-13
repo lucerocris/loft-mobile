@@ -632,3 +632,35 @@ class OptionRow extends StatelessWidget {
     );
   }
 }
+
+/// One row of a session transcript (chat view and the Loft Assistant).
+class ChatRowView extends StatelessWidget {
+  final ChatLog log;
+  final ChatRow row;
+  final PendingPrompt? pending;
+  /// The session waits on the user (its open question shows in the picker, not here).
+  final bool asking;
+  /// The session is working: the open tool call gets the spinner.
+  final bool running;
+  final ChatItem? open;
+  const ChatRowView({super.key, required this.log, required this.row, this.pending, this.asking = false, this.running = false, this.open});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = row;
+    switch (r) {
+      case ToolsRow(:final tools):
+        // The call waiting on a permission prompt is in the card; keep its row, no spinner.
+        return ToolSteps(key: ValueKey(r.key), tools: tools, resultFor: log.resultFor, live: running ? open?.tool : null);
+      case MsgRow(:final item):
+        return switch (item.kind) {
+          ChatKind.user => UserBubble(item, key: ValueKey(item.id)),
+          ChatKind.assistant => SelectionArea(key: ValueKey(item.id), child: Markdown(item.text)),
+          ChatKind.note => NoteRow(item.text, key: ValueKey(item.id)),
+          ChatKind.question => pending?.tool == item.tool && asking ? const SizedBox.shrink() : AskedRow(item, log.results[item.tool], key: ValueKey(item.id)),
+          ChatKind.tool => PlanBlock(item.plan, key: ValueKey(item.id)),
+          _ => const SizedBox.shrink(),
+        };
+    }
+  }
+}

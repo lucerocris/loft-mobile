@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/grouping.dart';
 import '../data/loft_client.dart';
 import '../data/models.dart';
+import '../state/assistant.dart';
 import '../state/conn.dart';
 import '../theme/tokens.dart';
 import '../widgets/common.dart';
@@ -98,9 +99,29 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     return false; // the list updates from the server snapshot
   }
 
+  /// "Archive all" on the Done section: one POST /api/bulk. With a filter on,
+  /// only the done cards in view go (by id); otherwise everything done.
+  Future<void> _archiveDone(List<AgentCard> done, {required bool filtered}) async {
+    final client = ref.read(clientProvider);
+    if (client == null || done.isEmpty) return;
+    final n = done.length;
+    final ok = await confirmDanger(context,
+        title: 'Archive $n done ${n == 1 ? 'agent' : 'agents'}?',
+        body: '${filtered ? 'The done agents in this view' : 'Everything in Done'} leaves the inbox. Their sessions are kept.',
+        action: 'Archive all');
+    if (!ok || !mounted) return;
+    try {
+      final r = await client.bulk('archive', filter: 'done', ids: filtered ? [for (final c in done) c.id] : null);
+      if (mounted) toast(context, r.message.isNotEmpty ? r.message : 'Archived ${r.count}');
+    } on LoftError catch (e) {
+      if (mounted) toast(context, e.status == 404 ? 'Archive all needs a newer Loft on the laptop.' : e.message, error: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final conn = ref.watch(connProvider);
+    final hasAssistant = ref.watch(assistantSupportProvider) == true;
     final host = ref.watch(pairingProvider)?.name ?? 'fedora';
     final snap = conn.snap;
     final offline = conn.offline;
@@ -135,10 +156,20 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         return SectionHeader('Done', g.cards.length,
             trailing: g.cards.isEmpty
                 ? null
-                : InkWell(
-                    onTap: () => setState(() => _showDone = !_showDone),
-                    child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(_showDone ? 'Hide' : 'Show', style: T.label)),
-                  ));
+                : Row(mainAxisSize: MainAxisSize.min, children: [
+                    InkWell(
+                      onTap: offline ? null : () => _archiveDone(g.cards, filtered: filter.isNotEmpty),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                        child: Text('Archive all', style: T.label.copyWith(color: offline ? C.t3 : C.t2)),
+                      ),
+                    ),
+                    const SizedBox(width: S.s2),
+                    InkWell(
+                      onTap: () => setState(() => _showDone = !_showDone),
+                      child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(_showDone ? 'Hide' : 'Show', style: T.label)),
+                    ),
+                  ]));
       }
       return SectionHeader(
         g.label,
@@ -191,6 +222,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   const Spacer(),
                   _HostChip(name: host, offline: offline, connecting: conn.connecting && !conn.online),
                   const SizedBox(width: S.s1),
+                  if (hasAssistant)
+                    GestureDetector(
+                      onLongPress: () => context.push('/assistant?listen=1'),
+                      child: IconBtn(LucideIcons.sparkles, tooltip: 'Loft Assistant', onTap: () => context.push('/assistant')),
+                    ),
                   IconBtn(LucideIcons.appWindow, tooltip: 'Browser', onTap: () => context.push('/browser')),
                   IconBtn(LucideIcons.ellipsisVertical, tooltip: 'More', onTap: () => showSettingsSheet(context, ref)),
                 ]),

@@ -14,6 +14,31 @@ import 'models.dart';
 import 'pairing.dart';
 import 'sse.dart';
 
+/// POST /api/bulk's answer: what happened, and to which cards.
+class BulkResult {
+  final String message;
+  final int count;
+  final List<String> ids;
+  const BulkResult(this.message, this.count, this.ids);
+}
+
+/// GET /api/assistant: `{id, card, account, running}`; [id] is null before the
+/// first message (or after a reset).
+class AssistantInfo {
+  final String? id;
+  final AgentCard? card;
+  final String? account;
+  final bool running;
+  const AssistantInfo({this.id, this.card, this.account, this.running = false});
+
+  factory AssistantInfo.fromJson(Map<String, dynamic> j) => AssistantInfo(
+        id: j['id'] is String && (j['id'] as String).isNotEmpty ? j['id'] as String : null,
+        card: j['card'] is Map ? AgentCard.fromJson((j['card'] as Map).cast<String, dynamic>()) : null,
+        account: j['account'] is String ? j['account'] as String : null,
+        running: j['running'] == true,
+      );
+}
+
 class LoftError implements Exception {
   final int? status;
   final String message;
@@ -155,6 +180,48 @@ class LoftClient {
   }
 
   Future<String> reply(String id, String text) => act(id, 'reply', {'text': text});
+
+  /// POST `/api/cards/<id>/rename` with `{title?, summary?}`. The title also goes
+  /// as `name`, which older Loft reads (it ignores the rest).
+  Future<String> rename(String id, {String? title, String? summary}) =>
+      act(id, 'rename', {'title': ?title, 'name': ?title, 'summary': ?summary});
+
+  /// POST `/api/cards/<id>/describe`: Loft writes a new title and summary from the
+  /// session's first prompt. 404 = an older Loft.
+  Future<({String title, String? summary})> describe(String id, {bool keepTitle = false}) async {
+    final j = await _post('/api/cards/$id/describe', {'keepTitle': keepTitle}, t: const Duration(seconds: 60)) as Map;
+    final s = j['summary'];
+    return (title: '${j['title'] ?? ''}', summary: s is String && s.isNotEmpty ? s : null);
+  }
+
+  /// POST `/api/bulk`: archive or stop many agents at once. [ids] wins over [filter].
+  Future<BulkResult> bulk(String action, {String filter = 'done', List<String>? ids}) async {
+    final j = await _post('/api/bulk', {'action': action, 'filter': filter, 'ids': ?ids}, t: const Duration(seconds: 90)) as Map;
+    return BulkResult('${j['message'] ?? ''}', j['count'] is int ? j['count'] as int : 0, [for (final i in (j['ids'] as List? ?? const [])) '$i']);
+  }
+
+  /// GET `/api/assistant`: the Loft Assistant's session. null = an older Loft (404).
+  Future<AssistantInfo?> assistant() async {
+    try {
+      return AssistantInfo.fromJson((await _get('/api/assistant') as Map).cast<String, dynamic>());
+    } on LoftError catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// POST `/api/assistant`: send the assistant a message (starts it when it has no
+  /// session yet). Returns its card id.
+  Future<String> askAssistant(String message) async {
+    final j = await _post('/api/assistant', {'message': message}, t: const Duration(seconds: 60)) as Map;
+    return '${j['id'] ?? ''}';
+  }
+
+  /// POST `/api/assistant/reset`: archive the conversation; the next message starts fresh.
+  Future<String> resetAssistant() async {
+    final j = await _post('/api/assistant/reset', const {}, t: const Duration(seconds: 30));
+    return j is Map ? '${j['message'] ?? ''}' : '';
+  }
 
   /// Whole-clip transcription (fallback when the live stream isn't possible).
   Future<String> transcribe(List<int> audio, String contentType) async {

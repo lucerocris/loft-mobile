@@ -8,16 +8,16 @@ import '../voice/trailing_command.dart';
 import '../voice/voice_controller.dart';
 import 'common.dart';
 
-/// Appends a transcript to [field]; if it ends with "send it" / "start it",
-/// strips the phrase and fires [go] after a 2 s Undo window.
-/// Returns a cancel function (also wired to the snackbar's Undo).
-void deliverTranscript(BuildContext context, TextEditingController field, String transcript, {required VoidCallback go, required String goLabel}) {
+/// Appends a transcript to [field]; if it ends with "send it" / "start it"
+/// (or [always], e.g. the Loft Assistant where speaking is sending), strips the
+/// phrase and fires [go] after a 2 s Undo window.
+void deliverTranscript(BuildContext context, TextEditingController field, String transcript, {required VoidCallback go, required String goLabel, bool always = false}) {
   if (transcript.trim().isEmpty) return;
   final t = parseTrailing(transcript);
   final before = field.text.trimRight();
   field.text = before.isEmpty ? t.text : '$before ${t.text}';
   field.selection = TextSelection.collapsed(offset: field.text.length);
-  if (!t.go || field.text.trim().isEmpty) return;
+  if (!(t.go || always) || field.text.trim().isEmpty) return;
   var undone = false;
   final timer = Timer(const Duration(seconds: 2), () {
     if (!undone) go();

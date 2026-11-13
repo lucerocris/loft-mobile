@@ -50,6 +50,10 @@ class AgentTitle extends ConsumerWidget {
     ];
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.screenTitle),
+      if (c.summary != null) ...[
+        const SizedBox(height: 2),
+        Text(c.summary!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+      ],
       const SizedBox(height: 4),
       Row(children: [
         for (final (i, w) in parts.indexed) ...[if (i > 0) sep, w],
@@ -85,7 +89,8 @@ class AgentMenuButton extends ConsumerWidget {
       itemBuilder: (_) => [
         if (c.hasBrowser) item('browser', LucideIcons.appWindow, 'Open its browser'),
         if (!c.isTodo) item('pin', c.pinned ? LucideIcons.pinOff : LucideIcons.pin, c.pinned ? 'Unpin' : 'Pin to top'),
-        item('rename', LucideIcons.pencil, 'Rename'),
+        item('rename', LucideIcons.pencil, c.isTodo ? 'Rename' : 'Rename / describe'),
+        if (c.isAgent && !c.noPrompt) item('describe', LucideIcons.sparkles, 'Describe again'),
         if (snap.supportsProjects) item('project', LucideIcons.folderInput, 'Move to project…'),
         if (others.length == 1) item('account', LucideIcons.arrowLeftRight, running ? 'Move to ${others.single.label} after this turn' : 'Move to ${others.single.label}'),
         if (others.length > 1) item('account', LucideIcons.arrowLeftRight, running ? 'Move to account after this turn…' : 'Move to account…'),
@@ -140,21 +145,25 @@ Future<void> runAgentAction(BuildContext context, WidgetRef ref, AgentCard c, St
     if (to == null || to == c.account || !context.mounted) return;
     body = {'account': to};
   }
+  if (a == 'describe') {
+    try {
+      final d = await client.describe(c.id, keepTitle: false);
+      if (context.mounted) toast(context, d.title.isEmpty ? 'Described' : 'Now “${d.title}”');
+    } on LoftError catch (e) {
+      if (context.mounted) toast(context, e.status == 404 ? 'Describing needs a newer Loft on the laptop.' : e.message, error: true);
+    }
+    return;
+  }
   if (a == 'rename') {
-    final ctl = TextEditingController(text: c.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename'),
-        content: TextField(controller: ctl, autofocus: true, style: T.body, onSubmitted: (v) => Navigator.pop(ctx, v)),
-        actions: [
-          Btn('Cancel', onTap: () => Navigator.pop(ctx), kind: BtnKind.quiet, height: 44),
-          Btn('Save', onTap: () => Navigator.pop(ctx, ctl.text), kind: BtnKind.primary, height: 44),
-        ],
-      ),
-    );
-    if (name == null || name.trim().isEmpty || name.trim() == c.name) return;
-    body = {'name': name.trim()};
+    final r = await showRenameDialog(context, c);
+    if (r == null || !context.mounted) return;
+    try {
+      final m = c.isTodo ? await client.act(c.id, 'rename', {'name': r.title}) : await client.rename(c.id, title: r.title, summary: r.summary);
+      if (context.mounted) toast(context, m);
+    } on LoftError catch (e) {
+      if (context.mounted) toast(context, e.message, error: true);
+    }
+    return;
   }
   try {
     final m = await client.act(c.id, a, body);
@@ -164,4 +173,51 @@ Future<void> runAgentAction(BuildContext context, WidgetRef ref, AgentCard c, St
   } on LoftError catch (e) {
     if (context.mounted) toast(context, e.message, error: true);
   }
+}
+
+/// Title and (for agents) the one-line summary. Returns only what changed;
+/// null when nothing did or it was cancelled.
+Future<({String? title, String? summary})?> showRenameDialog(BuildContext context, AgentCard c) async {
+  final title = TextEditingController(text: c.name);
+  final summary = TextEditingController(text: c.summary ?? '');
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(c.isTodo ? 'Rename' : 'Rename and describe'),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        TextField(
+          key: const ValueKey('rename-title'),
+          controller: title,
+          autofocus: true,
+          style: T.body,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(labelText: 'Title'),
+          textInputAction: c.isTodo ? TextInputAction.done : TextInputAction.next,
+          onSubmitted: c.isTodo ? (_) => Navigator.pop(ctx, true) : null,
+        ),
+        if (!c.isTodo) ...[
+          const SizedBox(height: S.s3),
+          TextField(
+            key: const ValueKey('rename-summary'),
+            controller: summary,
+            style: T.body,
+            minLines: 1,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(labelText: 'What it\'s for', hintText: 'One short sentence'),
+          ),
+        ],
+      ]),
+      actions: [
+        Btn('Cancel', onTap: () => Navigator.pop(ctx, false), kind: BtnKind.quiet, height: 44),
+        Btn('Save', onTap: () => Navigator.pop(ctx, true), kind: BtnKind.primary, height: 44),
+      ],
+    ),
+  );
+  if (ok != true) return null;
+  final t = title.text.trim(), s = summary.text.trim();
+  final newTitle = t.isEmpty || t == c.name ? null : t;
+  final newSummary = c.isTodo || s == (c.summary ?? '') ? null : s;
+  if (newTitle == null && newSummary == null) return null;
+  return (title: newTitle, summary: newSummary);
 }
