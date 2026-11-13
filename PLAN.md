@@ -91,6 +91,8 @@ remote code execution on the laptop. The rules:
 | Card actions | `POST /api/cards/<id>/<action>`: `reply {text}`, `start {prompt?}`, `stop`, `archive`, `pin`, `rename`, `account`, `prompt` |
 | Terminal | WebSocket `/ws/term/<id>`: binary is pty bytes, text JSON is `{type:"resize",rows,cols}` or `{type:"input",data}` |
 | Voice | `POST /api/voice` (body = audio) returns `{text}` |
+| Folder picker | `GET /api/fs?path=<~/x>[&hidden=1]` returns `{path, display, parent, dirs: [{name, path, display, git, web}], recent: [same items], truncated}`; 403 outside home; 404 on `~` = older Loft (Browse hidden, typed entry stays) |
+| Browsers | `GET /api/sites` (accounts with sites + agents with a browser); WebSocket `/ws/browser/<id>` and `/ws/sites/<account>`: binary = JPEG frames, text = JSON events and input (Loft docs/browser-protocol.md). A refused upgrade (404/403) shows "not shared" |
 
 (The brief called the action route `/api/act`. In `server.py` it is
 `/api/cards/...`, as listed above.)

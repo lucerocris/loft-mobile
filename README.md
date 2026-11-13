@@ -16,4 +16,6 @@ Android first; the Flutter project keeps the iOS folder so iOS can follow.
 4. Scan the pairing QR code in the app.
 
 For development without a computer running Loft, `tools/fake_loft.py` serves a fake snapshot
-(scenarios: freelancer, two-accounts, solo, legacy) that the emulator reaches at 10.0.2.2.
+(scenarios: freelancer, two-accounts, solo, legacy, pickers) that the emulator reaches at 10.0.2.2.
+It also fakes the folder picker (`/api/fs`) and the live browsers (`/api/sites`, `/ws/browser/<id>`,
+`/ws/sites/<account>`, streaming generated JPEGs; needs Pillow).
