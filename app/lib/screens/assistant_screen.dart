@@ -348,9 +348,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> with PromptAc
   }
 
   /// Suggestions just above the composer (empty conversation only).
-  Widget _chips() => Padding(
+  Widget _chips() => Container(
+        width: double.infinity,
         padding: const EdgeInsets.fromLTRB(S.s4, 0, S.s4, S.s3),
-        child: Wrap(spacing: S.s2, runSpacing: S.s2, children: [
+        child: Wrap(alignment: WrapAlignment.start, spacing: S.s2, runSpacing: S.s2, children: [
           for (final s in assistantSuggestions)
             PillChip(label: s.label, lead: Icon(s.icon, size: 14, color: C.t2), onTap: () => _suggest(s)),
         ]),

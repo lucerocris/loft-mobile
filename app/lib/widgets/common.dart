@@ -283,6 +283,13 @@ class UsageStrip extends StatelessWidget {
   }
 }
 
+/// The status line already says what the summary says (a task's prompt is its first line).
+bool _restates(String line, String summary) {
+  String norm(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
+  final l = norm(line), s = norm(summary);
+  return s.isNotEmpty && (l.startsWith(s) || s.startsWith(l));
+}
+
 /// Figma "Agent item": status dot, title + one line, age + account dot.
 class AgentItem extends StatelessWidget {
   final AgentCard card;
@@ -324,7 +331,7 @@ class AgentItem extends StatelessWidget {
                   if (c.pinned) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(LucideIcons.pin, size: 13, color: C.t3)),
                   Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.rowTitle.copyWith(color: c.col == Col.done ? C.t2 : C.t1))),
                 ]),
-                if (c.summary != null)
+                if (c.summary != null && !_restates(c.line, c.summary!))
                   Padding(
                     padding: const EdgeInsets.only(top: 1),
                     child: Text(c.summary!, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.secondary.copyWith(fontSize: 13, color: C.t3)),

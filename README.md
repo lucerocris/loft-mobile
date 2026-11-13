@@ -18,4 +18,6 @@ Android first; the Flutter project keeps the iOS folder so iOS can follow.
 For development without a computer running Loft, `tools/fake_loft.py` serves a fake snapshot
 (scenarios: freelancer, two-accounts, solo, legacy, pickers) that the emulator reaches at 10.0.2.2.
 It also fakes the folder picker (`/api/fs`) and the live browsers (`/api/sites`, `/ws/browser/<id>`,
-`/ws/sites/<account>`, streaming generated JPEGs; needs Pillow).
+`/ws/sites/<account>`, streaming generated JPEGs; needs Pillow), task summaries, rename/describe,
+`/api/bulk`, and a fake Loft Assistant (`/api/assistant`) that answers in the chat format and really
+archives, stops (after a confirm picker), lists and starts cards.

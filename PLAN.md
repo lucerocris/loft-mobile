@@ -93,6 +93,9 @@ remote code execution on the laptop. The rules:
 | Voice | `POST /api/voice` (body = audio) returns `{text}` |
 | Folder picker | `GET /api/fs?path=<~/x>[&hidden=1]` returns `{path, display, parent, dirs: [{name, path, display, git, web}], recent: [same items], truncated}`; 403 outside home; 404 on `~` = older Loft (Browse hidden, typed entry stays) |
 | Browsers | `GET /api/sites` (accounts with sites + agents with a browser); WebSocket `/ws/browser/<id>` and `/ws/sites/<account>`: binary = JPEG frames, text = JSON events and input (Loft docs/browser-protocol.md). A refused upgrade (404/403) shows "not shared" |
+| Titles | Cards carry `summary` (one line, or null), shown under the title. `POST /api/cards/<id>/rename {title?, summary?}` (title also sent as `name` for older Loft), `POST /api/cards/<id>/describe {keepTitle?}` → `{title, summary}` |
+| Bulk | `POST /api/bulk {action: archive\|stop, filter: done\|idle\|all, ids?}` → `{message, count, ids}`. Done section: Archive all (by ids when a filter is on) |
+| Loft Assistant | `GET /api/assistant` → `{id, card, account, running}` (404 = older Loft: entry hidden); `POST /api/assistant {message}` → `{id}`; `POST /api/assistant/reset`. Transcript via `/messages`, pickers via `/answer`. `assistant: true` cards never show in the inbox (Snapshot.assistant) |
 
 (The brief called the action route `/api/act`. In `server.py` it is
 `/api/cards/...`, as listed above.)
