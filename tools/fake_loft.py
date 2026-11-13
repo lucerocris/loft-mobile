@@ -20,9 +20,21 @@ approval, and a plain-text question).
 GET /api/cards/<id>/messages serves a made-up session per card (the chat view);
 running cards grow by one step every few seconds, and a reply is appended.
 POST /api/cards/<id>/answer answers a picker (409 when the tool id is stale).
+
+Folder picker: GET /api/fs?path=~/x[&hidden=1] lists a made-up home folder (Loft's
+loft/fs.py shape; 403 outside home, 404 for a missing folder; Recent = the scenario's dirs).
+Browser: running cards carry a `browser` badge; GET /api/sites lists signed-in sites per
+account (Loft docs/browser-protocol.md: {accounts: [{account, label, hex, sites, browser}], agents,
+chrome}); WebSocket /ws/browser/<card id> and /ws/sites/<account> stream generated JPEG frames
+(needs Pillow) and answer mouse, key, nav, site, sites, back, reload and viewport like
+loft/browser.py's Viewer. The legacy scenario 404s all of these.
 """
 import argparse
+import base64
 import copy
+import hashlib
+import io
+import struct
 import json
 import os
 import secrets
@@ -71,7 +83,9 @@ SCENARIOS = {
         ],
         "cards": [
             card("a0000001", "Checkout copy · review", "studio", "needs", "~/clients/acme-web", "Two headline options are ready. Which one?", 12),
-            card("a0000002", "Hero images · compress", "studio", "running", "~/clients/acme-web", "Converting 48 images to AVIF", 0),
+            {**card("a0000002", "Hero images · compress", "studio", "running", "~/clients/acme-web", "Converting 48 images to AVIF", 0),
+             "browser": {"mcp": True, "running": False, "url": "http://localhost:5173/", "live": True,
+                         "checks": {"ok": True, "passed": 3, "total": 3}}},
             card("a0000003", "Offline sync · tests", "overflow", "running", "~/clients/northwind-app", "Running the sync suite", 3),
             card("a0000004", "Push alerts · Android", "studio", "running", "~/clients/northwind-app", "Wiring the notification channel", 8),
             card("t0000005", "Release notes 2.4", "studio", "todo", "~/clients/northwind-api", "(no prompt yet)", 60, kind="todo"),
@@ -95,7 +109,8 @@ SCENARIOS = {
         "cards": [
             card("b0000001", "Invoices · export diff", "work", "needs", "~/work/ops-tools", "I found why the totals don't match. Fix both?", 47),
             card("b0000002", "Search · ranking weights", "work", "needs", "~/work/ops-tools", "Token expired: pick route a, b or c", 1),
-            card("b0000003", "Reports · weekly board", "work", "running", "~/work/ops-tools", "Writing the board layout into the automation", 0, pinned=True),
+            {**card("b0000003", "Reports · weekly board", "work", "running", "~/work/ops-tools", "Writing the board layout into the automation", 0, pinned=True),
+             "browser": {"mcp": True, "running": False, "url": "https://tickets.example.com/board", "live": True, "account": "work", "sites": 1}},
             card("b0000004", "Notes · course outline", "personal", "needs", "~/notes", "Start the outline for weeks 3–5?", 12),
             card("b0000005", "Reader · long-press lookup", "personal", "running", "~/reader", "Running the emulator tests", 3),
             card("t0000006", "System · default model", "personal", "todo", "~/loft", "(no prompt yet)", 55, kind="todo"),
@@ -112,7 +127,8 @@ SCENARIOS = {
         "projects": [],
         "cards": [
             card("c0000001", "Blog · RSS feed", "main", "needs", "~/code/blog", "The feed has 2 date formats. Keep RFC 822?", 6),
-            card("c0000002", "Portfolio · dark mode", "main", "running", "~/code/portfolio", "Checking contrast on the cards", 0),
+            {**card("c0000002", "Portfolio · dark mode", "main", "running", "~/code/portfolio", "Checking contrast on the cards", 0),
+             "browser": {"mcp": True, "running": False}},
             card("c0000003", "CLI · release script", "main", "running", "~/code/cli", "Tagging v0.4.1", 4),
             card("t0000004", "Resume · update", "main", "todo", "~/docs/resume", "(no prompt yet)", 1440, kind="todo"),
             card("c0000005", "Blog · images", "main", "done", "~/code/blog", "", 2000, result="Images resized"),
@@ -400,6 +416,265 @@ def resolve_account(s, body, project):
     return s["defaultAccount"]
 
 
+# ------------------------------------------------------------------ folder picker
+HOME = "/home/me"
+TREE = {   # a made-up home folder: name -> subtree; "@git" / "@web" mark a folder
+    "clients": {n: {"@git": True, "@web": True, "src": {}, "public": {}} for n in
+                ("acme-web", "northwind-app", "northwind-api", "bloom-shop", "harbor-api")},
+    "code": {"blog": {"@git": True, "@web": True, "posts": {}}, "portfolio": {"@git": True, "@web": True},
+             "cli": {"@git": True, "src": {}}, "scratch": {}},
+    "work": {"ops-tools": {"@git": True, "scripts": {}}, "notes": {}, "search": {"@git": True}},
+    "loft": {"@git": True, "@web": True, "app": {}, "docs": {}}, "reader": {"@git": True}, "notes": {"2026": {}},
+    "errands": {}, "docs": {"resume": {}}, "dotfiles": {"@git": True}, "Downloads": {}, "Music": {},
+    ".config": {"loft": {}}, ".cache": {},
+}
+TREE["clients"]["archive"] = {f"old-{i:03d}": {} for i in range(520)}   # long folder: truncated at 500
+
+
+def fs_display(p):
+    return "~" if p == HOME else "~" + p[len(HOME):] if p.startswith(HOME + "/") else p
+
+
+def fs_resolve(path):
+    raw = (path or "~").strip() or "~"
+    if raw == "~" or raw.startswith("~/"):
+        raw = HOME + raw[1:]
+    raw = os.path.normpath(raw)
+    if not raw.startswith("/"):
+        return 400, "Give a full path or one starting with ~."
+    if raw != HOME and not raw.startswith(HOME + "/"):
+        return 403, "Only folders inside your home folder can be browsed."
+    node = TREE
+    for part in [x for x in raw[len(HOME):].split("/") if x]:
+        if part.startswith("@") or part not in node:
+            return 404, f"No such folder: {fs_display(raw)}"
+        node = node[part]
+    return raw, node
+
+
+def fs_item(p, node):
+    return {"name": os.path.basename(p), "path": p, "display": fs_display(p),
+            "git": bool(node.get("@git")), "web": bool(node.get("@web"))}
+
+
+def fs_list(query, dirs):
+    q = parse_qs(query)
+    p, node = fs_resolve((q.get("path") or ["~"])[0])
+    if isinstance(p, int):
+        return p, {"error": node, "message": node}
+    hidden = (q.get("hidden") or [""])[0] in ("1", "true")
+    names = sorted((n for n in node if not n.startswith("@") and (hidden or not n.startswith("."))), key=lambda n: (n.lower(), n))
+    out = [fs_item(f"{p}/{n}", node[n]) for n in names[:500]]
+    recent = []
+    if p == HOME:
+        for d in dirs:
+            rp, rn = fs_resolve(d)
+            if not isinstance(rp, int):
+                recent.append(fs_item(rp, rn))
+    return 200, {"path": p, "display": fs_display(p), "parent": None if p == HOME else os.path.dirname(p),
+                 "dirs": out, "recent": recent, "truncated": len(names) > 500}
+
+
+# ------------------------------------------------------------------ browser
+SITES = {   # per scenario: account -> sites (Loft's loft/sites.py sites.json shape)
+    "freelancer": {"studio": [{"id": "s1a2b3c4", "name": "Helpdesk", "url": "https://help.example.com"},
+                              {"id": "s5d6e7f8", "name": "Analytics", "url": "https://analytics.example.com/dash"}],
+                   "overflow": [{"id": "s9a8b7c6", "name": "Shop admin", "url": "https://admin.bloom.example.com"}]},
+    "two-accounts": {"work": [{"id": "w1", "name": "Tickets", "url": "https://tickets.example.com"}]},
+    "solo": {}, "pickers": {},
+}
+
+def sites_account(a):
+    """One entry of GET /api/sites accounts (loft/sites.py public())."""
+    sites = [{**x, "cookies": 3 if i % 2 == 0 else 0, "signedIn": i % 2 == 0}
+             for i, x in enumerate(SITES.get(STATE["name"], {}).get(a["id"], []))]
+    running = any(k == ("site", a["id"]) for k in PAGES)
+    return {"account": a["id"], "label": a["label"], "hex": a.get("hex", ""), "sites": sites,
+            "browser": {"running": running, "window": False}, "profile": bool(sites)}
+
+
+WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+
+def ws_send(wfile, op, data):
+    n = len(data)
+    head = bytes([0x80 | op]) + (bytes([n]) if n < 126 else bytes([126]) + struct.pack(">H", n) if n < 65536
+                                 else bytes([127]) + struct.pack(">Q", n))
+    wfile.write(head + data)
+    wfile.flush()
+
+
+def ws_read(rfile):
+    h = rfile.read(2)
+    if len(h) < 2:
+        return None, b""
+    op, n = h[0] & 0x0F, h[1] & 0x7F
+    if n == 126:
+        n = struct.unpack(">H", rfile.read(2))[0]
+    elif n == 127:
+        n = struct.unpack(">Q", rfile.read(8))[0]
+    mask = rfile.read(4) if h[1] & 0x80 else b"\0\0\0\0"
+    data = bytes(b ^ mask[i % 4] for i, b in enumerate(rfile.read(n)))
+    return op, data
+
+
+class FakePage:
+    """What the fake browser shows: a made-up page that scrolls, takes clicks and typing."""
+
+    def __init__(self, url, title, account=None):
+        self.url, self.title = url, title
+        self.account = account   # sites browser: the account entry ({account, label, sites, ...})
+        self.sites = (account or {}).get("sites", [])
+        self.history = [url]
+        self.mobile, self.scroll, self.typed = False, 0, ""
+        self.clicks = []   # (x, y) in 0..1 of the picture, last few
+        self.lock = threading.Lock()
+        self.dirty = True
+
+    @property
+    def size(self):
+        return (780, 1688) if self.mobile else (1280, 800)   # mobile = 390x844 CSS at 2x, like Loft
+
+    def handle(self, m):
+        t = m.get("type")
+        if t == "site":   # sites browser: open one of the account's sites
+            site = next((x for x in self.sites if x["id"] == m.get("id")), None)
+            if not site:
+                return {"type": "toast", "err": True, "text": "No such site."}
+            m, t = {"type": "nav", "url": site["url"]}, "nav"
+        if t == "sites":
+            return {"type": "sites", **self.account} if self.account else None
+        with self.lock:
+            if t == "mouse":
+                k = m.get("kind")
+                if k == "mousePressed":
+                    self.clicks = (self.clicks + [(m.get("x", 0), m.get("y", 0))])[-5:]
+                elif k == "mouseWheel":
+                    self.scroll = max(0, min(4000, self.scroll + int(m.get("dy", 0))))
+            elif t == "key":
+                if m.get("text"):
+                    self.typed = (self.typed + m["text"])[-60:]
+                elif m.get("key") == "Backspace":
+                    self.typed = self.typed[:-1]
+                elif m.get("key") == "Enter":
+                    self.typed += " ⏎ "
+            elif t == "nav":
+                u = (m.get("url") or "").strip()
+                if u:
+                    self.url = u if "://" in u or u.startswith("about:") else "http://" + u
+                    self.history.append(self.url)
+                    self.scroll = 0
+                    return {"type": "url", "url": self.url}
+            elif t == "back" and len(self.history) > 1:
+                self.history.pop()
+                self.url, self.scroll = self.history[-1], 0
+                return {"type": "url", "url": self.url}
+            elif t == "reload":
+                self.scroll = 0
+                return {"type": "toast", "text": "Reloaded"}
+            elif t == "viewport":
+                self.mobile = bool(m.get("mobile"))
+            self.dirty = True
+        return None
+
+    def jpeg(self, tick):
+        from PIL import Image, ImageDraw, ImageFont
+        with self.lock:
+            w, h = self.size
+            k = 2 if self.mobile else 1
+            img = Image.new("RGB", (w, h), (246, 247, 249))
+            d = ImageDraw.Draw(img)
+            try:
+                big, mid, small = (ImageFont.load_default(size=s * k) for s in (28, 18, 14))
+            except TypeError:   # old Pillow
+                big = mid = small = ImageFont.load_default()
+            top = 64 * k
+            d.rectangle([0, 0, w, top], fill=(24, 26, 31))
+            d.text((20 * k, 20 * k), self.title, font=mid, fill=(237, 238, 240))
+            d.text((w - 140 * k, 24 * k), time.strftime("%H:%M:%S"), font=small, fill=(164, 168, 175))
+            y = top + 24 * k - self.scroll
+            d.text((20 * k, y), self.url, font=big, fill=(20, 22, 26))
+            y += 48 * k
+            for i in range(40):
+                if y > h:
+                    break
+                if y > top - 40 * k:
+                    d.rounded_rectangle([20 * k, y, w - 20 * k, y + 64 * k], radius=10 * k, fill=(255, 255, 255), outline=(222, 225, 230))
+                    d.text((36 * k, y + 12 * k), f"Row {i + 1}" + ("  ·  " + self.typed if i == 0 and self.typed else ""), font=mid, fill=(30, 32, 36))
+                    d.text((36 * k, y + 38 * k), "Scroll, tap and type from the phone", font=small, fill=(110, 115, 123))
+                y += 76 * k
+            for (cx, cy) in self.clicks:
+                x, yy = cx * w, cy * h
+                d.ellipse([x - 12 * k, yy - 12 * k, x + 12 * k, yy + 12 * k], outline=(91, 141, 255), width=3 * k)
+            d.rectangle([0, h - 6 * k, int(w * ((tick % 30) / 30)), h], fill=(91, 141, 255))   # it's live
+            self.dirty = False
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=70)
+        return buf.getvalue()
+
+
+def browser_session(handler, page, hello):
+    """Run one fake browser socket: frames out, input in."""
+    key = handler.headers.get("Sec-WebSocket-Key", "")
+    accept = base64.b64encode(hashlib.sha1((key + WS_GUID).encode()).digest()).decode()
+    handler.send_response(101, "Switching Protocols")
+    handler.send_header("Upgrade", "websocket")
+    handler.send_header("Connection", "Upgrade")
+    handler.send_header("Sec-WebSocket-Accept", accept)
+    handler.end_headers()
+    handler.wfile.flush()
+    lock, alive = threading.Lock(), [True]
+
+    def out(op, data):
+        with lock:
+            ws_send(handler.wfile, op, data)
+
+    def ev(d):
+        out(1, json.dumps(d).encode())
+
+    def pump():
+        tick = 0
+        try:
+            while alive[0]:
+                out(2, page.jpeg(tick))
+                tick += 1
+                if tick % 40 == 7:
+                    ev({"type": "err", "text": f"404 {page.url.rstrip('/')}/favicon.ico"})
+                time.sleep(0.25)
+        except (OSError, ValueError):
+            alive[0] = False
+
+    ev(hello)
+    ev({"type": "url", "url": page.url})
+    threading.Thread(target=pump, daemon=True).start()
+    try:
+        while alive[0]:
+            op, data = ws_read(handler.rfile)
+            if op is None or op == 8:
+                break
+            if op == 9:
+                out(10, data)
+                continue
+            if op != 1:
+                continue
+            try:
+                m = json.loads(data)
+            except ValueError:
+                continue
+            LOG.append({"method": "WS", "path": handler.path, "body": m})
+            r = page.handle(m)
+            if r:
+                ev(r)
+    except (OSError, ValueError):
+        pass
+    finally:
+        alive[0] = False
+        handler.close_connection = True
+
+
+PAGES = {}   # ("agent"|"site", id) -> FakePage: the page stays where you left it, like the real one
+
+
 class H(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -462,6 +737,43 @@ class H(BaseHTTPRequestHandler):
                 return self._json(200, messages(c, {k: v[-1] for k, v in parse_qs(url.query).items()}))
         if self.path == "/__log":
             return self._json(200, LOG[-50:])
+        if url.path == "/api/fs":
+            with LOCK:
+                if self._legacy_404():
+                    return
+                dirs = list(STATE["s"]["dirs"])
+            return self._json(*fs_list(url.query, dirs))
+        if url.path == "/api/sites":
+            with LOCK:
+                if self._legacy_404():
+                    return
+                s = STATE["s"]
+                agents = [{"id": c["id"], "name": c["name"], "account": c["account"], "col": c["col"],
+                           "url": c["browser"].get("url", ""), "live": c["browser"].get("live", False),
+                           "sitesAccount": c["browser"].get("account")} for c in s["cards"] if c.get("browser")]
+                return self._json(200, {"chrome": True, "accounts": [sites_account(a) for a in s["accounts"]], "agents": agents})
+        if len(parts) == 3 and parts[0] == "ws" and parts[1] in ("browser", "sites"):
+            with LOCK:
+                if self._legacy_404():
+                    return
+                s = STATE["s"]
+                if parts[1] == "browser":
+                    c = next((c for c in s["cards"] if c["id"] == parts[2]), None)
+                    if c is None or not c.get("browser"):
+                        return self._json(404, {"error": "no such agent"})
+                    key, title, url0 = ("agent", c["id"]), c["name"], "http://localhost:5173/"
+                    hello = {"type": "hello", "mcp": True, "ports": [5173], "login": False, "recording": None}
+                else:
+                    a = next((a for a in s["accounts"] if a["id"] == parts[2]), None)
+                    if a is None:
+                        return self._json(404, {"error": "no such account"})
+                    entry = sites_account(a)
+                    key, title, url0 = ("site", parts[2]), f"{a['label']} · signed-in browser", "about:blank"
+                    hello = {"type": "hello", **entry}
+                page = PAGES.setdefault(key, FakePage(url0, title, hello if parts[1] == "sites" else None))
+            if not self.headers.get("Sec-WebSocket-Key"):
+                return self._json(400, {"error": "websocket only"})
+            return browser_session(self, page, hello)
         if self.path == "/api/events":
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
