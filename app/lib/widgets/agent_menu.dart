@@ -83,6 +83,7 @@ class AgentMenuButton extends ConsumerWidget {
       tooltip: 'More',
       icon: const Icon(LucideIcons.ellipsisVertical, size: 22, color: C.t1),
       itemBuilder: (_) => [
+        if (c.hasBrowser) item('browser', LucideIcons.appWindow, 'Open its browser'),
         if (!c.isTodo) item('pin', c.pinned ? LucideIcons.pinOff : LucideIcons.pin, c.pinned ? 'Unpin' : 'Pin to top'),
         item('rename', LucideIcons.pencil, 'Rename'),
         if (snap.supportsProjects) item('project', LucideIcons.folderInput, 'Move to project…'),
@@ -97,6 +98,10 @@ class AgentMenuButton extends ConsumerWidget {
 }
 
 Future<void> runAgentAction(BuildContext context, WidgetRef ref, AgentCard c, String a) async {
+  if (a == 'browser') {
+    context.push('/browser/agent/${c.id}');
+    return;
+  }
   final client = ref.read(clientProvider);
   if (client == null) return;
   Map<String, dynamic> body = const {};

@@ -191,6 +191,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   const Spacer(),
                   _HostChip(name: host, offline: offline, connecting: conn.connecting && !conn.online),
                   const SizedBox(width: S.s1),
+                  IconBtn(LucideIcons.appWindow, tooltip: 'Browser', onTap: () => context.push('/browser')),
                   IconBtn(LucideIcons.ellipsisVertical, tooltip: 'More', onTap: () => showSettingsSheet(context, ref)),
                 ]),
               ),

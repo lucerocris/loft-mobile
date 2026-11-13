@@ -13,6 +13,7 @@ import '../theme/tokens.dart';
 import '../voice/voice_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/voice_dock.dart';
+import 'folder_picker.dart';
 
 /// Figma 5 · New task and 6 · New task · Listening. Voice first: opened from
 /// the inbox's "New task" button it starts listening straight away.
@@ -35,6 +36,8 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
   bool _busy = false;
   String? _error;
   final _extraDirs = <String>[];
+  /// Folder browsing on this Loft: null = not known yet, false = older Loft (404).
+  bool? _canBrowse;
 
   AgentCard? get _todo => widget.todoId == null ? null : ref.read(connProvider).snap.byId(widget.todoId!);
 
@@ -63,6 +66,31 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       });
     }
     if (widget.listen) WidgetsBinding.instance.addPostFrameCallback((_) => _voice.start());
+    if (t == null) _probeBrowse();
+  }
+
+  /// Older Loft has no `/api/fs`: then only typed entry (Other…) stays.
+  Future<void> _probeBrowse() async {
+    final c = ref.read(clientProvider);
+    if (c == null) return;
+    try {
+      await c.listDir('~');
+      if (mounted) setState(() => _canBrowse = true);
+    } on LoftError catch (e) {
+      if (mounted && e.status == 404) setState(() => _canBrowse = false);
+    } catch (_) {}
+  }
+
+  Future<void> _browse() async {
+    final c = ref.read(clientProvider);
+    if (c == null) return;
+    final picked = await showFolderPicker(context, load: (path, hidden) => c.listDir(path, hidden: hidden), host: ref.read(pairingProvider)?.name ?? 'the laptop');
+    final d = picked?.trim().replaceAll(RegExp(r'/+$'), '');
+    if (d == null || d.isEmpty || !mounted) return;
+    setState(() {
+      if (!_extraDirs.contains(d)) _extraDirs.add(d);
+      _dir = d;
+    });
   }
 
   @override
@@ -263,7 +291,8 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                   Wrap(spacing: S.s2, runSpacing: S.s2, children: [
                     for (final d in (todo == null ? _dirs(snap) : [todo.cwd]))
                       _Chip(label: d, mono: true, selected: d == dir, icon: LucideIcons.folder, onTap: todo == null ? () => setState(() => _dir = d) : null),
-                    if (todo == null) _Chip(label: 'Other…', onTap: _other),
+                    if (todo == null && _canBrowse != false) _Chip(label: 'Browse…', icon: LucideIcons.folderSearch, onTap: _browse),
+                    if (todo == null) _Chip(label: _canBrowse == false ? 'Other…' : 'Type…', onTap: _other),
                   ]),
                   const SizedBox(height: S.s6),
                   Container(

@@ -61,6 +61,8 @@ class AgentCard {
   final bool failed;
   /// A queued account switch ("after this turn"), when the server sends one.
   final String? pendingAccount;
+  /// Loft's `browser` badge: the agent has its own headless Chrome (null = none).
+  final BrowserBadge? browser;
 
   const AgentCard({
     required this.id,
@@ -79,11 +81,13 @@ class AgentCard {
     this.pinned = false,
     this.failed = false,
     this.pendingAccount,
+    this.browser,
   });
 
   bool get isTodo => kind == 'todo';
   bool get isAgent => kind == 'agent';
   bool get noPrompt => detail.isEmpty || detail == '(no prompt yet)';
+  bool get hasBrowser => browser != null;
 
   /// The folder's last part ("acme-app"; "home" for ~).
   String get folderName => _folderName(cwd);
@@ -117,7 +121,45 @@ class AgentCard {
       pinned: j['pinned'] == true,
       failed: j['failed'] == true,
       pendingAccount: j['pendingAccount'] is String && (j['pendingAccount'] as String).isNotEmpty ? j['pendingAccount'] as String : null,
+      browser: j['browser'] is Map ? BrowserBadge.fromJson((j['browser'] as Map).cast<String, dynamic>()) : (j['browser'] == true ? const BrowserBadge() : null),
     );
+  }
+}
+
+/// server.py browser_badge(): {mcp, running, url, live, account, sites, checks: {ok, passed, total, ...}}.
+class BrowserBadge {
+  /// The agent drives it through Loft's browser tools.
+  final bool mcp;
+  /// Checks are running now.
+  final bool running;
+  /// It is on a page (not a blank tab); [url] is its newest tab.
+  final bool live;
+  final String url;
+  /// Whose signed-in sites it started with (null = a plain web-project browser).
+  final String? sitesAccount;
+  final int? passed, total;
+  final bool? ok;
+  const BrowserBadge({this.mcp = false, this.running = false, this.live = false, this.url = '', this.sitesAccount, this.passed, this.total, this.ok});
+
+  factory BrowserBadge.fromJson(Map<String, dynamic> j) {
+    final c = j['checks'] is Map ? (j['checks'] as Map).cast<String, dynamic>() : const <String, dynamic>{};
+    return BrowserBadge(
+      mcp: j['mcp'] == true,
+      running: j['running'] == true,
+      live: j['live'] == true,
+      url: '${j['url'] ?? ''}',
+      sitesAccount: j['account'] is String && (j['account'] as String).isNotEmpty ? j['account'] as String : null,
+      passed: c['passed'] is int ? c['passed'] as int : null,
+      total: c['total'] is int ? c['total'] as int : null,
+      ok: c['ok'] is bool ? c['ok'] as bool : null,
+    );
+  }
+
+  /// "checks 3/4", "checking…", or "".
+  String get summary {
+    if (running) return 'checking…';
+    if (total != null && total! > 0) return 'checks ${passed ?? 0}/$total';
+    return '';
   }
 }
 

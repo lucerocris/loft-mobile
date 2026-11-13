@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'notify/watcher.dart';
 import 'data/models.dart';
 import 'screens/agent_screen.dart';
+import 'screens/browser_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/inbox_screen.dart';
 import 'screens/new_task_screen.dart';
@@ -57,6 +58,16 @@ final _routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, s) => MaterialPage(fullscreenDialog: true, child: NewTaskScreen(listen: s.uri.queryParameters['listen'] == '1')),
       ),
       GoRoute(path: '/projects', builder: (_, s) => ProjectsScreen(startNew: s.uri.queryParameters['new'] == '1', assignCard: s.uri.queryParameters['card'])),
+      GoRoute(path: '/browser', builder: (_, _) => const BrowserHomeScreen()),
+      GoRoute(path: '/browser/agent/:id', builder: (_, s) => LiveBrowserScreen.agent(id: s.pathParameters['id']!)),
+      GoRoute(
+        path: '/browser/sites/:account',
+        builder: (_, s) => LiveBrowserScreen.sites(
+          account: s.pathParameters['account']!,
+          siteId: s.uri.queryParameters['site'],
+          siteName: s.uri.queryParameters['name'],
+        ),
+      ),
       GoRoute(path: '/todo/:id', pageBuilder: (_, s) => MaterialPage(fullscreenDialog: true, child: NewTaskScreen(todoId: s.pathParameters['id']))),
     ],
   );

@@ -66,6 +66,7 @@ class SessionHeader extends ConsumerWidget {
               Row(children: sub),
             ]),
           ),
+          if (card.hasBrowser) IconBtn(LucideIcons.appWindow, tooltip: 'Browser', onTap: () => context.push('/browser/agent/${card.id}')),
           if (showMenu && card.isAgent) SizedBox(width: 48, height: 48, child: AgentMenuButton(card: card)) else const SizedBox(width: 48),
         ]),
       ),

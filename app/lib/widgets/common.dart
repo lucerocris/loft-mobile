@@ -340,6 +340,7 @@ class AgentItem extends StatelessWidget {
               ]),
             ),
             const SizedBox(width: 12),
+            if (c.browser?.live ?? false) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(LucideIcons.appWindow, size: 14, color: C.t3)),
             Text(ago(c.updated), style: T.mono12),
             if (showAccount) ...[const SizedBox(width: 6), Dot(accountColor ?? C.t3, size: 6, hollow: accountColor == null)],
           ]),

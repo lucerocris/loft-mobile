@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'browser.dart';
 import 'chat.dart';
+import 'fs.dart';
 import 'models.dart';
 import 'pairing.dart';
 import 'sse.dart';
@@ -197,6 +200,59 @@ class LoftClient {
 
   /// WebSocket /ws/voice: send PCM16 16 kHz mono frames, then {"type":"stop"}.
   Future<WebSocketChannel> voice() => _ws('/ws/voice');
+
+  /// GET `/api/fs?path=<path>`: one folder's sub-folders (home when [path] is
+  /// "~"). 404 = an older Loft without folder browsing; 403 = outside home.
+  Future<FsListing> listDir(String path, {bool hidden = false}) async {
+    final q = <String, String>{'path': path.isEmpty ? '~' : path, if (hidden) 'hidden': '1'};
+    final j = await _get(Uri(path: '/api/fs', queryParameters: q).toString());
+    return FsListing.fromJson((j as Map).cast<String, dynamic>());
+  }
+
+  /// GET `/api/sites`: each Loft account's signed-in browser and sites, and the
+  /// agents that have a browser. 404 = an older Loft (no Sites browser).
+  Future<SitesInfo> sites() async => SitesInfo.fromJson(await _get('/api/sites'));
+
+  /// WebSocket for a live browser (`/ws/browser/<id>` or the Sites browser).
+  /// Upgrades by hand so a refusal keeps its HTTP status (404 = this Loft
+  /// doesn't share that browser with the phone).
+  Future<WebSocket> browserSocket(String path) async {
+    final hc = HttpClient()..connectionTimeout = const Duration(seconds: 6);
+    try {
+      final rnd = Random.secure();
+      final req = await hc.openUrl('GET', pairing.http(path)).timeout(const Duration(seconds: 6));
+      req.followRedirects = false;
+      pairing.auth.forEach(req.headers.set);
+      req.headers
+        ..set(HttpHeaders.connectionHeader, 'Upgrade')
+        ..set(HttpHeaders.upgradeHeader, 'websocket')
+        ..set('Sec-WebSocket-Version', '13')
+        ..set('Sec-WebSocket-Key', base64.encode(List<int>.generate(16, (_) => rnd.nextInt(256))));
+      final res = await req.close().timeout(const Duration(seconds: 8));
+      if (res.statusCode != HttpStatus.switchingProtocols) {
+        String body = '';
+        try {
+          body = await utf8.decodeStream(res).timeout(const Duration(seconds: 3));
+        } catch (_) {}
+        dynamic j;
+        try {
+          j = jsonDecode(body);
+        } catch (_) {}
+        final msg = j is Map ? '${j['message'] ?? j['error'] ?? 'Error ${res.statusCode}'}' : 'Error ${res.statusCode}';
+        throw LoftError(msg, status: res.statusCode);
+      }
+      final socket = await res.detachSocket();
+      final ws = WebSocket.fromUpgradedSocket(socket, serverSide: false);
+      ws.pingInterval = const Duration(seconds: 20);
+      return ws;
+    } on LoftError {
+      rethrow;
+    } catch (e) {
+      throw LoftError('Can\'t reach ${pairing.name}: ${_short(e)}');
+    } finally {
+      hc.close();
+    }
+  }
 
   void close() => _http.close();
 }
