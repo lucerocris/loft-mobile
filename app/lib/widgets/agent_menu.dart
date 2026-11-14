@@ -23,29 +23,29 @@ class AgentTitle extends ConsumerWidget {
     final snap = ref.watch(connProvider).snap;
     final acc = snap.account(c.account);
     final proj = snap.projectOf(c);
-    const sep = Text(' · ', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3));
+    final sep = Text(' · ', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3));
     final parts = <Widget>[
       if (snap.multiAccount)
         Row(mainAxisSize: MainAxisSize.min, children: [
           Dot(acc == null ? C.t3 : Color(acc.color), size: 6, hollow: acc == null),
           const SizedBox(width: 6),
-          Text(snap.accountLabel(c.account), style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2)),
+          Text(snap.accountLabel(c.account), style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2)),
           if (c.pendingAccount != null && c.pendingAccount != c.account)
-            Text(' → ${snap.accountLabel(c.pendingAccount)} next turn', style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.needs)),
+            Text(' → ${snap.accountLabel(c.pendingAccount)} next turn', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.needs)),
         ]),
       if (proj != null)
         Flexible(
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             MarkDot(Mark.square, Color(proj.color), size: 6),
             const SizedBox(width: 6),
-            Flexible(child: Text(proj.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2))),
+            Flexible(child: Text(proj.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2))),
           ]),
         ),
       if (status != null)
-        Flexible(child: Text(status!, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)))
+        Flexible(child: Text(status!, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)))
       else ...[
         if (proj == null) Flexible(child: Text(c.folderName, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.mono12)),
-        Text(ago(c.updated), style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+        Text(ago(c.updated), style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
       ],
     ];
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -81,7 +81,7 @@ class AgentMenuButton extends ConsumerWidget {
         );
     return PopupMenuButton<String>(
       tooltip: 'More',
-      icon: const Icon(LucideIcons.ellipsisVertical, size: 22, color: C.t1),
+      icon: Icon(LucideIcons.ellipsisVertical, size: 22, color: C.t1),
       itemBuilder: (_) => [
         if (!c.isTodo) item('pin', c.pinned ? LucideIcons.pinOff : LucideIcons.pin, c.pinned ? 'Unpin' : 'Pin to top'),
         item('rename', LucideIcons.pencil, 'Rename'),

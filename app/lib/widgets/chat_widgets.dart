@@ -19,7 +19,7 @@ TextSpan inlineSpan(String text, TextStyle base) {
         MdStyle.code => TextSpan(text: s.text, style: mono),
         MdStyle.bold => TextSpan(text: s.text, style: const TextStyle(fontWeight: FontWeight.w600)),
         MdStyle.italic => TextSpan(text: s.text, style: const TextStyle(fontStyle: FontStyle.italic)),
-        MdStyle.link => TextSpan(text: s.text, style: const TextStyle(decoration: TextDecoration.underline, decorationColor: C.t3)),
+        MdStyle.link => TextSpan(text: s.text, style: TextStyle(decoration: TextDecoration.underline, decorationColor: C.t3)),
         MdStyle.plain => TextSpan(text: s.text),
       }
   ]);
@@ -28,8 +28,9 @@ TextSpan inlineSpan(String text, TextStyle base) {
 /// Assistant prose: readable type, code blocks that scroll sideways.
 class Markdown extends StatelessWidget {
   final String text;
-  final TextStyle style;
-  const Markdown(this.text, {super.key, this.style = T.body});
+  final TextStyle? _style;
+  const Markdown(this.text, {super.key, TextStyle? style}) : _style = style;
+  TextStyle get style => _style ?? T.body;
 
   @override
   Widget build(BuildContext context) {
@@ -59,10 +60,10 @@ class Markdown extends StatelessWidget {
           ]),
         MdQuote(:final text) => Container(
             padding: const EdgeInsets.only(left: S.s3),
-            decoration: const BoxDecoration(border: Border(left: BorderSide(color: C.borderStrong, width: 2))),
+            decoration: BoxDecoration(border: Border(left: BorderSide(color: C.borderStrong, width: 2))),
             child: Text.rich(inlineSpan(text, style.copyWith(color: C.t2))),
           ),
-        MdRule() => const Divider(color: C.border, height: 1),
+        MdRule() => Divider(color: C.border, height: 1),
       };
 }
 
@@ -76,11 +77,11 @@ class CodeBlock extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 2, 0),
             child: Row(children: [
-              Expanded(child: Text(lang == 'table' ? '' : lang, style: const TextStyle(fontFamily: F.mono, fontSize: 11, color: C.t3))),
+              Expanded(child: Text(lang == 'table' ? '' : lang, style: TextStyle(fontFamily: F.mono, fontSize: 11, color: C.t3))),
               IconButton(
                 tooltip: 'Copy',
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(LucideIcons.copy, size: 15, color: C.t3),
+                icon: Icon(LucideIcons.copy, size: 15, color: C.t3),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: code));
                   toast(context, 'Copied');
@@ -91,7 +92,7 @@ class CodeBlock extends StatelessWidget {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Text(code, style: const TextStyle(fontFamily: F.mono, fontSize: 13, height: 20 / 13, color: C.t1)),
+            child: Text(code, style: TextStyle(fontFamily: F.mono, fontSize: 13, height: 20 / 13, color: C.t1)),
           ),
         ]),
       );
@@ -120,12 +121,12 @@ class UserBubble extends StatelessWidget {
                   Padding(
                     padding: EdgeInsets.only(top: item.text.isEmpty ? 0 : 6),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(LucideIcons.image, size: 14, color: C.t3),
+                      Icon(LucideIcons.image, size: 14, color: C.t3),
                       const SizedBox(width: 6),
                       Text(item.images == 1 ? '1 image' : '${item.images} images', style: T.caption),
                     ]),
                   ),
-                if (item.local) const Padding(padding: EdgeInsets.only(top: 4), child: Text('Sending…', style: T.caption)),
+                if (item.local) Padding(padding: EdgeInsets.only(top: 4), child: Text('Sending…', style: T.caption)),
               ]),
             ),
           ),
@@ -138,9 +139,9 @@ class NoteRow extends StatelessWidget {
   const NoteRow(this.text, {super.key});
   @override
   Widget build(BuildContext context) => Row(children: [
-        const Expanded(child: Divider(color: C.border, height: 1)),
+        Expanded(child: Divider(color: C.border, height: 1)),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(text, style: T.caption, textAlign: TextAlign.center)),
-        const Expanded(child: Divider(color: C.border, height: 1)),
+        Expanded(child: Divider(color: C.border, height: 1)),
       ]);
 }
 
@@ -183,19 +184,18 @@ class _ToolStepsState extends State<ToolSteps> {
         _Row(
           onTap: () => setState(() => _all = true),
           child: Row(children: [
-            const Icon(LucideIcons.listCollapse, size: 16, color: C.t3),
+            Icon(LucideIcons.listCollapse, size: 16, color: C.t3),
             const SizedBox(width: 10),
             Expanded(child: Text('$hidden earlier steps', style: T.label)),
-            const Icon(LucideIcons.chevronDown, size: 16, color: C.t3),
+            Icon(LucideIcons.chevronDown, size: 16, color: C.t3),
           ]),
         ),
       for (final t in shown) ..._tool(t),
     ];
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(color: C.surface, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(R.md)),
+    return Glass(
+      radius: BorderRadius.circular(R.lg),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        for (final (i, r) in rows.indexed) ...[if (i > 0 && r is _Row) const Divider(height: 1, color: C.border), r],
+        for (final (i, r) in rows.indexed) ...[if (i > 0 && r is _Row) Divider(height: 1, color: C.border), r],
       ]),
     );
   }
@@ -208,7 +208,7 @@ class _ToolStepsState extends State<ToolSteps> {
     if (r != null) {
       status = Icon(r.ok ? LucideIcons.check : LucideIcons.x, size: 16, color: r.ok ? C.ok : C.failed);
     } else if (live) {
-      status = const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.6, color: C.t2));
+      status = SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.6, color: C.t2));
     }
     return [
       _Row(
@@ -220,9 +220,9 @@ class _ToolStepsState extends State<ToolSteps> {
           Expanded(
             child: Text.rich(
               TextSpan(children: [
-                TextSpan(text: t.name, style: const TextStyle(fontFamily: F.mono, fontSize: 13, fontWeight: FontWeight.w500, color: C.t2)),
+                TextSpan(text: t.name, style: TextStyle(fontFamily: F.mono, fontSize: 13, fontWeight: FontWeight.w500, color: C.t2)),
                 const TextSpan(text: '  '),
-                TextSpan(text: t.title, style: const TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t1)),
+                TextSpan(text: t.title, style: TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t1)),
               ]),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -230,9 +230,9 @@ class _ToolStepsState extends State<ToolSteps> {
           ),
           if (r?.add != null) ...[
             const SizedBox(width: 8),
-            Text('+${r!.add}', style: const TextStyle(fontFamily: F.mono, fontSize: 12, color: C.ok)),
+            Text('+${r!.add}', style: TextStyle(fontFamily: F.mono, fontSize: 12, color: C.ok)),
             const SizedBox(width: 4),
-            Text('−${r.del ?? 0}', style: const TextStyle(fontFamily: F.mono, fontSize: 12, color: C.failed)),
+            Text('−${r.del ?? 0}', style: TextStyle(fontFamily: F.mono, fontSize: 12, color: C.failed)),
           ],
           if (status != null) ...[const SizedBox(width: 10), status],
           const SizedBox(width: 8),
@@ -244,7 +244,7 @@ class _ToolStepsState extends State<ToolSteps> {
           padding: const EdgeInsets.fromLTRB(38, 0, 12, 12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             if (t.detail.isNotEmpty && t.detail != t.title)
-              Padding(padding: const EdgeInsets.only(bottom: 8), child: SelectableText(t.detail, style: const TextStyle(fontFamily: F.mono, fontSize: 12, height: 18 / 12, color: C.t2))),
+              Padding(padding: const EdgeInsets.only(bottom: 8), child: SelectableText(t.detail, style: TextStyle(fontFamily: F.mono, fontSize: 12, height: 18 / 12, color: C.t2))),
             Container(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               decoration: BoxDecoration(color: C.canvas, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(R.sm)),
@@ -294,8 +294,8 @@ Future<void> showOutput(BuildContext context, String title, String text, bool cu
         builder: (ctx, sc) => ListView(controller: sc, padding: const EdgeInsets.fromLTRB(S.s4, 0, S.s4, S.s6), children: [
           Text(title, style: T.rowTitle),
           const SizedBox(height: S.s3),
-          SingleChildScrollView(scrollDirection: Axis.horizontal, child: SelectableText(text, style: const TextStyle(fontFamily: F.mono, fontSize: 12, height: 18 / 12, color: C.t1))),
-          if (cut) const Padding(padding: EdgeInsets.only(top: S.s3), child: Text('Cut short here. The terminal has the rest.', style: T.caption)),
+          SingleChildScrollView(scrollDirection: Axis.horizontal, child: SelectableText(text, style: TextStyle(fontFamily: F.mono, fontSize: 12, height: 18 / 12, color: C.t1))),
+          if (cut) Padding(padding: EdgeInsets.only(top: S.s3), child: Text('Cut short here. The terminal has the rest.', style: T.caption)),
         ]),
       ),
     );
@@ -309,7 +309,7 @@ class PlanBlock extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: C.surface, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(R.md)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Row(children: [Icon(LucideIcons.map, size: 16, color: C.t2), SizedBox(width: 8), Text('Plan', style: T.label)]),
+          Row(children: [Icon(LucideIcons.map, size: 16, color: C.t2), SizedBox(width: 8), Text('Plan', style: T.label)]),
           const SizedBox(height: S.s2),
           Markdown(plan),
         ]),
@@ -331,13 +331,13 @@ class AskedRow extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(color: C.surface, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(R.md)),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(padding: EdgeInsets.only(top: 2), child: Icon(LucideIcons.messageCircleQuestion, size: 16, color: C.t3)),
+        Padding(padding: EdgeInsets.only(top: 2), child: Icon(LucideIcons.messageCircleQuestion, size: 16, color: C.t3)),
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(q, style: T.secondary),
-            if (a.isNotEmpty) ...[const SizedBox(height: 2), Text('→ $a', style: const TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: C.t1))],
-            if (result == null) const Text('Not answered', style: T.caption),
+            if (a.isNotEmpty) ...[const SizedBox(height: 2), Text('→ $a', style: TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: C.t1))],
+            if (result == null) Text('Not answered', style: T.caption),
           ]),
         ),
       ]),
@@ -357,8 +357,8 @@ class WorkingRow extends StatelessWidget {
         child: Row(children: [
           Pulse(color: color),
           const SizedBox(width: S.s2),
-          const Text('Working', style: TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: C.t1)),
-          if (label.isNotEmpty) Expanded(child: Text(' · $label', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t2))) else const Spacer(),
+          Text('Working', style: TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: C.t1)),
+          if (label.isNotEmpty) Expanded(child: Text(' · $label', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t2))) else const Spacer(),
         ]),
       );
 }
@@ -366,12 +366,13 @@ class WorkingRow extends StatelessWidget {
 /// Banner for offline / older Loft (Figma 8, 9).
 class ChatBanner extends StatelessWidget {
   final IconData icon;
-  final Color color;
+  final Color? _color;
   final String title;
   final String? text;
   final String? action;
   final VoidCallback? onAction;
-  const ChatBanner({super.key, required this.icon, required this.title, this.text, this.action, this.onAction, this.color = C.needs});
+  const ChatBanner({super.key, required this.icon, required this.title, this.text, this.action, this.onAction, Color? color}) : _color = color;
+  Color get color => _color ?? C.needs;
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
@@ -381,7 +382,7 @@ class ChatBanner extends StatelessWidget {
           const SizedBox(width: S.s3),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: const TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: C.t1)),
+              Text(title, style: TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: C.t1)),
               if (text != null) Text(text!, style: T.secondary),
             ]),
           ),
@@ -470,7 +471,7 @@ class _PickerCardState extends State<PickerCard> {
         children.add(Row(children: [
           for (var i = 0; i < s.qs.length; i++) ...[
             if (i > 0) const SizedBox(width: 6),
-            Expanded(child: Container(height: 3, decoration: BoxDecoration(color: i <= s.step ? C.needs : C.borderStrong, borderRadius: BorderRadius.circular(2)))),
+            Expanded(child: Container(height: 3, decoration: BoxDecoration(color: i <= s.step ? C.needsDot : C.borderStrong, borderRadius: BorderRadius.circular(2)))),
           ],
         ]));
       }
@@ -520,7 +521,7 @@ class _PickerCardState extends State<PickerCard> {
         children.add(Container(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           decoration: BoxDecoration(color: C.canvas, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(R.sm)),
-          child: Text(p.action.replaceFirst(RegExp(r'^approve\s+'), ''), style: const TextStyle(fontFamily: F.mono, fontSize: 13, height: 20 / 13, color: C.t1)),
+          child: Text(p.action.replaceFirst(RegExp(r'^approve\s+'), ''), style: TextStyle(fontFamily: F.mono, fontSize: 13, height: 20 / 13, color: C.t1)),
         ));
       }
       for (final (n, l) in p.options) {
@@ -556,23 +557,23 @@ class _PickerCardState extends State<PickerCard> {
     }
   }
 
-  Widget _frame(String label, IconData icon, List<Widget> children, {String? step}) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: C.surface,
-          border: Border.all(color: C.needs.withValues(alpha: .55)),
-          borderRadius: BorderRadius.circular(R.lg),
-        ),
+  Widget _frame(String label, IconData icon, List<Widget> children, {String? step}) => Glass(
+        lifted: true,
+        radius: BorderRadius.circular(20),
+        border: C.needsDot.withValues(alpha: .6),
+        borderWidth: 1.2,
+        child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
             Icon(icon, size: 14, color: C.needs),
             const SizedBox(width: S.s2),
-            Expanded(child: Text(label, style: const TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.needs))),
-            if (step != null) Text(step, style: const TextStyle(fontFamily: F.mono, fontSize: 12, color: C.t2)),
+            Expanded(child: Text(label, style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.needs))),
+            if (step != null) Text(step, style: TextStyle(fontFamily: F.mono, fontSize: 12, color: C.t2)),
           ]),
           for (final c in children) ...[const SizedBox(height: S.s3), c],
         ]),
-      );
+      ));
 }
 
 class OptionRow extends StatelessWidget {
@@ -590,7 +591,7 @@ class OptionRow extends StatelessWidget {
         width: 20,
         height: 20,
         decoration: BoxDecoration(color: selected ? C.t1 : null, border: selected ? null : Border.all(color: C.t3, width: 1.5), borderRadius: BorderRadius.circular(5)),
-        child: selected ? const Icon(LucideIcons.check, size: 14, color: C.canvas) : null,
+        child: selected ? Icon(LucideIcons.check, size: 14, color: C.canvas) : null,
       );
     } else if (number != null) {
       lead = Container(
@@ -598,7 +599,7 @@ class OptionRow extends StatelessWidget {
         height: 24,
         alignment: Alignment.center,
         decoration: BoxDecoration(border: Border.all(color: C.borderStrong), borderRadius: BorderRadius.circular(6)),
-        child: Text('$number', style: const TextStyle(fontFamily: F.mono, fontSize: 12, color: C.t2)),
+        child: Text('$number', style: TextStyle(fontFamily: F.mono, fontSize: 12, color: C.t2)),
       );
     }
     return Semantics(

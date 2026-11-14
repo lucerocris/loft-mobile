@@ -33,12 +33,12 @@ class OptionRow extends StatelessWidget {
                   if (lead != null) ...[SizedBox(width: 20, child: Center(child: lead)), const SizedBox(width: 12)],
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                      Text(title, style: const TextStyle(fontFamily: F.sans, fontSize: 15, fontWeight: FontWeight.w500, color: C.t1)),
+                      Text(title, style: TextStyle(fontFamily: F.sans, fontSize: 15, fontWeight: FontWeight.w500, color: C.t1)),
                       if (subtitle != null && subtitle!.isNotEmpty) ...[const SizedBox(height: 1), Text(subtitle!, style: T.secondary.copyWith(color: C.t3))],
                     ]),
                   ),
-                  if (selected) const Icon(LucideIcons.check, size: 20, color: C.t1),
-                  if (chevron) const Icon(LucideIcons.chevronRight, size: 18, color: C.t3),
+                  if (selected) Icon(LucideIcons.check, size: 20, color: C.t1),
+                  if (chevron) Icon(LucideIcons.chevronRight, size: 18, color: C.t3),
                 ]),
               ),
             ),
@@ -55,7 +55,7 @@ class SheetTitle extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
+          Text(title, style: TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
           if (subtitle != null) ...[const SizedBox(height: 2), Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.secondary.copyWith(color: C.t3))],
         ]),
       );
@@ -112,7 +112,7 @@ Future<GroupBy?> showGroupBySheet(BuildContext context, Snapshot snap, GroupBy c
       if (snap.supportsProjects) ...[
         const Padding(padding: EdgeInsets.symmetric(vertical: S.s2), child: Divider(height: 1)),
         OptionRow(
-          lead: const Icon(LucideIcons.folderKanban, size: 20, color: C.t2),
+          lead: Icon(LucideIcons.folderKanban, size: 20, color: C.t2),
           title: projects.isEmpty ? 'Create project' : 'Projects',
           subtitle: projects.isEmpty ? 'Group agents by client or product, across accounts' : 'Create, edit, pick accounts and folders',
           chevron: true,
@@ -154,14 +154,14 @@ Future<String?> showMoveToProjectSheet(BuildContext context, Snapshot snap, Agen
           onTap: () => Navigator.pop(ctx, p.id),
         ),
       OptionRow(
-        lead: const MarkDot(Mark.hollow, C.t3, size: 12),
+        lead: MarkDot(Mark.hollow, C.t3, size: 12),
         title: 'By folder',
         subtitle: 'No manual choice: follows the folder it works in',
         selected: current == null,
         onTap: () => Navigator.pop(ctx, unsortedKey),
       ),
       const Padding(padding: EdgeInsets.symmetric(vertical: S.s2), child: Divider(height: 1)),
-      OptionRow(lead: const Icon(LucideIcons.plus, size: 20, color: C.t2), title: 'New project…', onTap: () => Navigator.pop(ctx, newProjectPick)),
+      OptionRow(lead: Icon(LucideIcons.plus, size: 20, color: C.t2), title: 'New project…', onTap: () => Navigator.pop(ctx, newProjectPick)),
     ],
   );
 }

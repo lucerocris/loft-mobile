@@ -165,11 +165,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 24, 12, 0),
           child: Column(children: [
-            const LoftMark(size: 48, body: C.border, left: C.borderStrong, right: C.borderStrong),
+            LoftMark(size: 48, body: C.border, left: C.borderStrong, right: C.borderStrong),
             const SizedBox(height: 12),
-            Text(filter.isEmpty ? 'Nothing needs you' : 'Nothing here right now', style: const TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
+            Text(filter.isEmpty ? 'Nothing needs you' : 'Nothing here right now', style: TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
             const SizedBox(height: 4),
-            const Text('Say what an agent should do next.', style: T.secondary),
+            Text('Say what an agent should do next.', style: T.secondary),
           ]),
         ),
       if (!conn.loaded) const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
@@ -185,13 +185,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(left: S.s4, right: S.s2),
                 child: Row(children: [
-                  const LoftMark(size: 24),
+                  const LoftMark(size: 26),
                   const SizedBox(width: S.s2),
-                  const Text('loft', style: T.appTitle),
+                  Text('loft', style: T.appTitle),
                   const Spacer(),
                   _HostChip(name: host, offline: offline, connecting: conn.connecting && !conn.online),
                   const SizedBox(width: S.s1),
-                  IconBtn(LucideIcons.ellipsisVertical, tooltip: 'More', onTap: () => showSettingsSheet(context, ref)),
+                  IconBtn(LucideIcons.ellipsisVertical, tooltip: 'More', glass: true, onTap: () => showSettingsSheet(context, ref)),
                 ]),
               ),
             ),
@@ -221,27 +221,28 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             right: 0,
             bottom: 16,
             child: Center(
-              child: Material(
-                color: C.primary,
+              child: Glass(
+                lifted: true,
+                child: Material(
+                color: Colors.transparent,
                 shape: const StadiumBorder(),
-                elevation: 0,
                 child: InkWell(
                   customBorder: const StadiumBorder(),
                   onTap: () => context.push('/new'),
                   onLongPress: () => context.push('/new?listen=1'),
-                  child: const SizedBox(
+                  child: SizedBox(
                     height: 56,
                     child: Padding(
                       padding: EdgeInsets.only(left: 20, right: 24),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(LucideIcons.plus, size: 22, color: C.onPrimary),
+                        Icon(LucideIcons.plus, size: 22, color: C.t1),
                         SizedBox(width: S.s2),
-                        Text('New task', style: TextStyle(fontFamily: F.sans, fontSize: 16, fontWeight: FontWeight.w500, color: C.onPrimary)),
+                        Text('New task', style: TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
                       ]),
                     ),
                   ),
                 ),
-              ),
+              )),
             ),
           ),
         ]),
@@ -262,16 +263,16 @@ class _HostChip extends StatelessWidget {
   final bool offline, connecting;
   const _HostChip({required this.name, required this.offline, required this.connecting});
   @override
-  Widget build(BuildContext context) => Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(border: Border.all(color: C.border), borderRadius: BorderRadius.circular(R.full)),
+  Widget build(BuildContext context) => Glass(
+        child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (offline) const Dot(C.failed) else Icon(LucideIcons.laptop, size: 16, color: connecting ? C.t3 : C.t2),
+          if (offline) Dot(C.failed) else Icon(LucideIcons.laptop, size: 16, color: connecting ? C.t3 : C.t2),
           const SizedBox(width: 6),
-          Text(offline ? 'offline' : name, style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: connecting ? C.t3 : C.t2)),
+          Text(offline ? 'offline' : name, style: TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: connecting ? C.t3 : C.t1)),
         ]),
-      );
+      ));
 }
 
 class _OfflineBanner extends StatelessWidget {
@@ -292,13 +293,13 @@ class _OfflineBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(S.s4, S.s3, S.s3, S.s3),
       decoration: BoxDecoration(color: C.raised, border: Border.all(color: C.borderStrong), borderRadius: BorderRadius.circular(R.md)),
       child: Row(children: [
-        const Icon(LucideIcons.wifiOff, size: 20, color: C.t2),
+        Icon(LucideIcons.wifiOff, size: 20, color: C.t2),
         const SizedBox(width: S.s3),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(unpaired ? 'Not paired any more' : 'Can\'t reach $host', style: const TextStyle(fontFamily: F.sans, fontSize: 15, fontWeight: FontWeight.w500, color: C.t1)),
+            Text(unpaired ? 'Not paired any more' : 'Can\'t reach $host', style: TextStyle(fontFamily: F.sans, fontSize: 15, fontWeight: FontWeight.w500, color: C.t1)),
             const SizedBox(height: 2),
-            Text(body, style: const TextStyle(fontFamily: F.sans, fontSize: 13, height: 18 / 13, color: C.t2)),
+            Text(body, style: TextStyle(fontFamily: F.sans, fontSize: 13, height: 18 / 13, color: C.t2)),
           ]),
         ),
         const SizedBox(width: S.s3),
