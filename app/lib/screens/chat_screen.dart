@@ -310,7 +310,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with PromptActions {
         Center(
           child: _olderBusy
               ? const Padding(padding: EdgeInsets.all(S.s3), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
-              : TextButton(onPressed: _older, child: const Text('Load earlier', style: T.label)),
+              : TextButton(onPressed: _older, child: Text('Load earlier', style: T.label)),
         )
       else if (_log.loaded)
         const NoteRow('Start of the conversation'),
@@ -399,7 +399,7 @@ class _Empty extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(S.s8),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(LucideIcons.messageSquare, size: 36, color: C.t3),
+          Icon(LucideIcons.messageSquare, size: 36, color: C.t3),
           const SizedBox(height: S.s3),
           Text(failed ? 'Nothing to show yet' : 'No conversation yet', style: T.screenTitle),
           const SizedBox(height: S.s2),

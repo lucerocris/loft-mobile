@@ -14,6 +14,7 @@ import 'screens/terminal_screen.dart';
 import 'state/conn.dart';
 import 'state/session_view.dart';
 import 'theme/theme.dart';
+import 'theme/tokens.dart';
 
 /// Chat <-> Terminal: a quick cross-fade, not a new screen sliding in.
 Page<void> _fade(GoRouterState s, Widget child) => CustomTransitionPage(
@@ -88,6 +89,18 @@ class _LoftAppState extends ConsumerState<LoftApp> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangePlatformBrightness() {
+    if (!syncBrightness()) return;
+    // Tokens are read at build time, so rebuild every widget (keeps all state and the route stack).
+    void rebuild(Element e) {
+      e.markNeedsBuild();
+      e.visitChildren(rebuild);
+    }
+    setState(() {});
+    (context as Element).visitChildren(rebuild);
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     // The in-app stream only runs while Loft is on screen; the alerts service
     // (if on) keeps watching in the background.
@@ -102,8 +115,7 @@ class _LoftAppState extends ConsumerState<LoftApp> with WidgetsBindingObserver {
       title: 'Loft',
       debugShowCheckedModeBanner: false,
       theme: loftTheme(),
-      darkTheme: loftTheme(),
-      themeMode: ThemeMode.dark,
+      themeMode: C.dark ? ThemeMode.dark : ThemeMode.light,
       routerConfig: ref.watch(_routerProvider),
     );
   }

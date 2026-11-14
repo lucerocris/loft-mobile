@@ -84,13 +84,13 @@ class _PairScreenState extends ConsumerState<PairScreen> {
 
   InputDecoration _input(String hint, {Widget? suffix}) => InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t3),
+        hintStyle: TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t3),
         filled: true,
         fillColor: C.raised,
         contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
         suffixIcon: suffix,
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: const BorderSide(color: C.border)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: const BorderSide(color: C.t3)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide(color: C.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide(color: C.t3)),
       );
 
   @override
@@ -101,35 +101,35 @@ class _PairScreenState extends ConsumerState<PairScreen> {
           Expanded(
             child: ListView(padding: const EdgeInsets.symmetric(horizontal: S.s6), children: [
               const SizedBox(height: S.s4),
-              const Row(children: [LoftMark(size: 24), SizedBox(width: S.s2), Text('loft', style: T.appTitle)]),
+              Row(children: [LoftMark(size: 24), SizedBox(width: S.s2), Text('loft', style: T.appTitle)]),
               const SizedBox(height: S.s6),
-              const Text('Connect to your laptop', style: TextStyle(fontFamily: F.sans, fontSize: 24, fontWeight: FontWeight.w600, color: C.t1, letterSpacing: -.2)),
+              Text('Connect to your laptop', style: TextStyle(fontFamily: F.sans, fontSize: 24, fontWeight: FontWeight.w600, color: C.t1, letterSpacing: -.2)),
               const SizedBox(height: S.s2),
-              const Text('On the laptop, open Loft and choose Pair phone. Point the camera at the code it shows.', style: TextStyle(fontFamily: F.sans, fontSize: 15, height: 22 / 15, color: C.t2)),
+              Text('On the laptop, open Loft and choose Pair phone. Point the camera at the code it shows.', style: TextStyle(fontFamily: F.sans, fontSize: 15, height: 22 / 15, color: C.t2)),
               const SizedBox(height: S.s6),
               _scannerBox(),
               const SizedBox(height: S.s6),
-              const Row(children: [
+              Row(children: [
                 Expanded(child: Divider(color: C.border, height: 1)),
                 Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('or enter it', style: T.caption)),
                 Expanded(child: Divider(color: C.border, height: 1)),
               ]),
               const SizedBox(height: S.s6),
-              const Text('Address', style: TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t2)),
+              Text('Address', style: TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t2)),
               const SizedBox(height: S.s2),
-              TextField(controller: _host, keyboardType: TextInputType.url, autocorrect: false, style: const TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1), decoration: _input('100.64.0.10:7717')),
+              TextField(controller: _host, keyboardType: TextInputType.url, autocorrect: false, style: TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1), decoration: _input('100.64.0.10:7717')),
               const SizedBox(height: S.s6),
-              const Text('Pairing code', style: TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t2)),
+              Text('Pairing code', style: TextStyle(fontFamily: F.sans, fontSize: 14, color: C.t2)),
               const SizedBox(height: S.s2),
               TextField(
                 controller: _code,
                 autocorrect: false,
                 enableSuggestions: false,
-                style: const TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1),
+                style: TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1),
                 decoration: _input('paste from Loft on the laptop',
                     suffix: IconButton(
                       tooltip: 'Paste',
-                      icon: const Icon(LucideIcons.clipboard, size: 20, color: C.t2),
+                      icon: Icon(LucideIcons.clipboard, size: 20, color: C.t2),
                       onPressed: () async {
                         final d = await Clipboard.getData('text/plain');
                         if (d?.text != null) _code.text = d!.text!.trim();
@@ -139,7 +139,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: S.s3),
-                Text(_error!, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.failed)),
+                Text(_error!, style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.failed)),
               ],
               const SizedBox(height: S.s6),
             ]),
@@ -149,7 +149,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
             child: Column(children: [
               SizedBox(width: double.infinity, child: Btn('Connect', onTap: _manual, kind: BtnKind.primary, busy: _busy)),
               const SizedBox(height: S.s3),
-              const Text('Only over your tailnet. Unpair from Loft on the laptop anytime.', textAlign: TextAlign.center, style: T.caption),
+              Text('Only over your tailnet. Unpair from Loft on the laptop anytime.', textAlign: TextAlign.center, style: T.caption),
             ]),
           ),
         ]),
@@ -172,7 +172,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 const _Corners(size: 92),
                 const SizedBox(height: S.s4),
-                Text(_busy ? 'Connecting…' : 'Tap to scan a Loft code', style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+                Text(_busy ? 'Connecting…' : 'Tap to scan a Loft code', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
               ]),
             ),
     );

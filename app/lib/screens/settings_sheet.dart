@@ -64,7 +64,7 @@ class _SettingsState extends ConsumerState<_Settings> {
         padding: const EdgeInsets.fromLTRB(S.s5, 0, S.s5, S.s4),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
-            const Icon(LucideIcons.laptop, size: 20, color: C.t2),
+            Icon(LucideIcons.laptop, size: 20, color: C.t2),
             const SizedBox(width: S.s3),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -82,17 +82,17 @@ class _SettingsState extends ConsumerState<_Settings> {
             contentPadding: EdgeInsets.zero,
             value: _alerts ?? false,
             onChanged: _alerts == null || _busy ? null : _toggle,
-            title: const Text('Needs-you alerts', style: T.rowTitle),
-            subtitle: const Text('Stays connected in the background over Tailscale and notifies you when an agent asks something. Shows a quiet permanent notification.',
+            title: Text('Needs-you alerts', style: T.rowTitle),
+            subtitle: Text('Stays connected in the background over Tailscale and notifies you when an agent asks something. Shows a quiet permanent notification.',
                 style: T.secondary),
           ),
           const Divider(height: 1),
           if (conn.snap.supportsProjects)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(LucideIcons.folderKanban, size: 20, color: C.t2),
-              title: const Text('Projects', style: T.rowTitle),
-              trailing: const Icon(LucideIcons.chevronRight, size: 18, color: C.t3),
+              leading: Icon(LucideIcons.folderKanban, size: 20, color: C.t2),
+              title: Text('Projects', style: T.rowTitle),
+              trailing: Icon(LucideIcons.chevronRight, size: 18, color: C.t3),
               onTap: () {
                 Navigator.pop(context);
                 context.push('/projects');
@@ -100,8 +100,8 @@ class _SettingsState extends ConsumerState<_Settings> {
             ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(LucideIcons.refreshCw, size: 20, color: C.t2),
-            title: const Text('Reconnect now', style: T.rowTitle),
+            leading: Icon(LucideIcons.refreshCw, size: 20, color: C.t2),
+            title: Text('Reconnect now', style: T.rowTitle),
             onTap: () {
               ref.read(connProvider.notifier).retry();
               Navigator.pop(context);
@@ -109,7 +109,7 @@ class _SettingsState extends ConsumerState<_Settings> {
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(LucideIcons.unlink, size: 20, color: C.failed),
+            leading: Icon(LucideIcons.unlink, size: 20, color: C.failed),
             title: Text('Unpair this phone', style: T.rowTitle.copyWith(color: C.failed)),
             onTap: _unpair,
           ),

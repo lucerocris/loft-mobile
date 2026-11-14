@@ -45,18 +45,18 @@ class SessionHeader extends ConsumerWidget {
       if (snap.accounts.isNotEmpty) ...[
         Dot(acc == null ? C.t3 : accColor, size: 6, hollow: acc == null),
         const SizedBox(width: 6),
-        Flexible(child: Text(snap.accountLabel(card.account), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2))),
-        const Text(' · ', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+        Flexible(child: Text(snap.accountLabel(card.account), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2))),
+        Text(' · ', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
       ],
       Flexible(child: Text(card.folderName, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.mono12)),
-      const Text(' · ', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
-      Text(ago(card.updated), style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+      Text(' · ', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+      Text(ago(card.updated), style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
     ];
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Padding(
         padding: const EdgeInsets.all(S.s1),
         child: Row(children: [
-          IconBtn(LucideIcons.arrowLeft, tooltip: mode == SessionView.terminal ? 'Back (detaches)' : 'Back', onTap: () => context.pop()),
+          IconBtn(LucideIcons.arrowLeft, tooltip: mode == SessionView.terminal ? 'Back (detaches)' : 'Back', glass: true, onTap: () => context.pop()),
           const SizedBox(width: S.s1),
           Expanded(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -65,7 +65,7 @@ class SessionHeader extends ConsumerWidget {
               Row(children: sub),
             ]),
           ),
-          if (showMenu && card.isAgent) SizedBox(width: 48, height: 48, child: AgentMenuButton(card: card)) else const SizedBox(width: 48),
+          if (showMenu && card.isAgent) Padding(padding: const EdgeInsets.all(4), child: Glass(child: SizedBox(width: 40, height: 40, child: AgentMenuButton(card: card)))) else const SizedBox(width: 48),
         ]),
       ),
       Padding(
@@ -87,7 +87,6 @@ class SessionHeader extends ConsumerWidget {
           ),
         ]),
       ),
-      const Divider(height: 1, color: C.border),
     ]);
   }
 }
@@ -99,15 +98,15 @@ class ViewToggle extends StatelessWidget {
   const ViewToggle({super.key, required this.mode, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => Glass(
+        child: Padding(
         padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(color: C.surface, border: Border.all(color: C.borderStrong), borderRadius: BorderRadius.circular(R.md)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           _seg(SessionView.chat, 'Chat', LucideIcons.messageSquare),
           const SizedBox(width: 2),
           _seg(SessionView.terminal, 'Terminal', LucideIcons.squareTerminal),
         ]),
-      );
+      ));
 
   Widget _seg(SessionView v, String label, IconData icon) {
     final on = v == mode;
@@ -117,10 +116,10 @@ class ViewToggle extends StatelessWidget {
       label: 'Show $label',
       excludeSemantics: true,
       child: Material(
-        color: on ? C.selected : Colors.transparent,
-        borderRadius: BorderRadius.circular(7),
+        color: on ? C.raised : Colors.transparent,
+        borderRadius: BorderRadius.circular(R.full),
         child: InkWell(
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(R.full),
           onTap: () => onChanged(v),
           child: SizedBox(
             height: 40,

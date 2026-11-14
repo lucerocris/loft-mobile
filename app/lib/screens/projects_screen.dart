@@ -57,24 +57,24 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
               child: Row(children: [
                 IconBtn(LucideIcons.arrowLeft, tooltip: 'Back', onTap: () => context.pop()),
                 const SizedBox(width: S.s1),
-                const Text('Projects', style: TextStyle(fontFamily: F.sans, fontSize: 18, fontWeight: FontWeight.w600, color: C.t1)),
+                Text('Projects', style: TextStyle(fontFamily: F.sans, fontSize: 18, fontWeight: FontWeight.w600, color: C.t1)),
               ]),
             ),
           ),
           Expanded(
             child: !snap.supportsProjects
-                ? const Padding(
+                ? Padding(
                     padding: EdgeInsets.all(S.s6),
                     child: Text('Loft on the laptop doesn\'t know about projects yet. Update it, then projects show up here.', style: T.secondary),
                   )
                 : ListView(padding: const EdgeInsets.fromLTRB(S.s4, S.s2, S.s4, S.s4), children: [
-                    const Text('An agent joins a project when it works inside one of the project\'s folders. Move one by hand from its ⋮ menu.', style: T.secondary),
+                    Text('An agent joins a project when it works inside one of the project\'s folders. Move one by hand from its ⋮ menu.', style: T.secondary),
                     const SizedBox(height: S.s3),
                     if (projects.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(S.s5),
                         decoration: BoxDecoration(color: C.surface, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(R.lg)),
-                        child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('No projects yet', style: T.rowTitle),
                           SizedBox(height: 4),
                           Text('Make one per client or product. A project can use one account or several.', style: T.secondary),
@@ -102,7 +102,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                                         Text(meta(p), maxLines: 1, overflow: TextOverflow.ellipsis, style: T.secondary.copyWith(color: C.t3)),
                                       ]),
                                     ),
-                                    const Icon(LucideIcons.chevronRight, size: 18, color: C.t3),
+                                    Icon(LucideIcons.chevronRight, size: 18, color: C.t3),
                                   ]),
                                 ),
                               ),
@@ -114,7 +114,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                       const SizedBox(height: S.s3),
                       Row(children: [
                         const SizedBox(width: S.s1),
-                        const MarkDot(Mark.hollow, C.t3),
+                        MarkDot(Mark.hollow, C.t3),
                         const SizedBox(width: S.s2),
                         Text('Unsorted: $unsorted ${unsorted == 1 ? 'agent' : 'agents'} outside every project folder', style: T.secondary.copyWith(color: C.t3)),
                       ]),
@@ -184,8 +184,8 @@ class _EditorState extends ConsumerState<_Editor> {
       (ctx) => [
         const SheetTitle('Add folder', subtitle: 'Agents working inside it join this project'),
         for (final d in choices)
-          OptionRow(lead: const Icon(LucideIcons.folder, size: 18, color: C.t3), title: d, onTap: () => Navigator.pop(ctx, d)),
-        OptionRow(lead: const Icon(LucideIcons.pencil, size: 18, color: C.t3), title: 'Type a path…', onTap: () => Navigator.pop(ctx, '')),
+          OptionRow(lead: Icon(LucideIcons.folder, size: 18, color: C.t3), title: d, onTap: () => Navigator.pop(ctx, d)),
+        OptionRow(lead: Icon(LucideIcons.pencil, size: 18, color: C.t3), title: 'Type a path…', onTap: () => Navigator.pop(ctx, '')),
       ],
     );
     if (picked == null || !mounted) return;
@@ -196,7 +196,7 @@ class _EditorState extends ConsumerState<_Editor> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Project folder'),
-          content: TextField(controller: ctl, autofocus: true, autocorrect: false, style: const TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1), onSubmitted: (s) => Navigator.pop(ctx, s)),
+          content: TextField(controller: ctl, autofocus: true, autocorrect: false, style: TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1), onSubmitted: (s) => Navigator.pop(ctx, s)),
           actions: [
             Btn('Cancel', onTap: () => Navigator.pop(ctx), kind: BtnKind.quiet, height: 44),
             Btn('Add', onTap: () => Navigator.pop(ctx, ctl.text), kind: BtnKind.primary, height: 44),
@@ -266,7 +266,7 @@ class _EditorState extends ConsumerState<_Editor> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(S.s5, 0, S.s5, S.s4),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-              Text(widget.project == null ? 'New project' : 'Edit project', style: const TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
+              Text(widget.project == null ? 'New project' : 'Edit project', style: TextStyle(fontFamily: F.sans, fontSize: 17, fontWeight: FontWeight.w600, color: C.t1)),
               label('Name'),
               TextField(
                 controller: _name,
@@ -279,8 +279,8 @@ class _EditorState extends ConsumerState<_Editor> {
                   filled: true,
                   fillColor: C.raised,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: const BorderSide(color: C.borderStrong)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: const BorderSide(color: C.t2)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide(color: C.borderStrong)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide(color: C.t2)),
                 ),
               ),
               label('Color'),
@@ -361,15 +361,15 @@ class _EditorState extends ConsumerState<_Editor> {
                       height: 48,
                       child: Row(children: [
                         const SizedBox(width: 14),
-                        const Icon(LucideIcons.folder, size: 16, color: C.t3),
+                        Icon(LucideIcons.folder, size: 16, color: C.t3),
                         const SizedBox(width: 10),
-                        Expanded(child: Text(f, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.mono, fontSize: 13, color: C.t1))),
+                        Expanded(child: Text(f, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: F.mono, fontSize: 13, color: C.t1))),
                         IconBtn(LucideIcons.x, tooltip: 'Remove $f', size: 18, color: C.t3, onTap: () => setState(() => _folders.remove(f))),
                       ]),
                     ),
                   InkWell(
                     onTap: () => _addFolder(snap),
-                    child: const SizedBox(
+                    child: SizedBox(
                       height: 48,
                       child: Row(children: [
                         SizedBox(width: 14),
@@ -381,7 +381,7 @@ class _EditorState extends ConsumerState<_Editor> {
                   ),
                 ]),
               ),
-              if (_error != null) ...[const SizedBox(height: S.s3), Text(_error!, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.failed))],
+              if (_error != null) ...[const SizedBox(height: S.s3), Text(_error!, style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.failed))],
               const SizedBox(height: S.s5),
               Row(children: [
                 if (widget.project != null) ...[Expanded(child: Btn('Delete', onTap: _busy ? null : _delete)), const SizedBox(width: S.s3)],

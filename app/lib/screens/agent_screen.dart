@@ -205,12 +205,12 @@ class _LastOutput extends StatelessWidget {
         decoration: BoxDecoration(color: C.surface, border: Border.all(color: C.border), borderRadius: BorderRadius.circular(R.md)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Icon(LucideIcons.squareTerminal, size: 16, color: C.t3),
+            Icon(LucideIcons.squareTerminal, size: 16, color: C.t3),
             const SizedBox(width: S.s2),
-            const Expanded(child: Text('Last output', style: TextStyle(fontFamily: F.sans, fontSize: 12, fontWeight: FontWeight.w500, color: C.t3))),
+            Expanded(child: Text('Last output', style: TextStyle(fontFamily: F.sans, fontSize: 12, fontWeight: FontWeight.w500, color: C.t3))),
             InkWell(
               onTap: onOpen,
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 6, horizontal: 2),
                 child: Text('Open terminal', style: TextStyle(fontFamily: F.sans, fontSize: 12, fontWeight: FontWeight.w500, color: C.t2)),
               ),
@@ -218,14 +218,14 @@ class _LastOutput extends StatelessWidget {
           ]),
           const SizedBox(height: S.s2),
           if (lines == null)
-            const Text('…', style: TextStyle(fontFamily: F.mono, fontSize: 12, height: 19 / 12, color: C.t2))
+            Text('…', style: TextStyle(fontFamily: F.mono, fontSize: 12, height: 19 / 12, color: C.t2))
           else if (lines!.isEmpty)
-            const Text('No earlier output.', style: TextStyle(fontFamily: F.mono, fontSize: 12, height: 19 / 12, color: C.t2))
+            Text('No earlier output.', style: TextStyle(fontFamily: F.mono, fontSize: 12, height: 19 / 12, color: C.t2))
           else
             for (final l in lines!)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text('● $l', style: const TextStyle(fontFamily: F.mono, fontSize: 12, height: 19 / 12, color: C.t2)),
+                child: Text('● $l', style: TextStyle(fontFamily: F.mono, fontSize: 12, height: 19 / 12, color: C.t2)),
               ),
         ]),
       );
