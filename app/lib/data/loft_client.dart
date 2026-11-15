@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'chat.dart';
 import 'models.dart';
 import 'pairing.dart';
 import 'sse.dart';
@@ -101,6 +102,23 @@ class LoftClient {
 
   Future<List<TimelineEntry>> timeline(String id) async =>
       [for (final e in (await _get('/api/timeline/$id') as List)) TimelineEntry.fromJson((e as Map).cast<String, dynamic>())];
+
+  /// GET `/api/cards/<id>/messages`: the session as chat items. [after] = only
+  /// what is new since that cursor (pass [session] too); [before] = an older page.
+  /// A 404 for a card that exists means the laptop runs an older Loft.
+  Future<ChatPage> messages(String id, {int? after, int? before, String? session, int limit = 60}) async {
+    final q = <String, String>{'limit': '$limit', 'after': ?after?.toString(), 'before': ?before?.toString(), 'session': ?session};
+    final j = await _get(Uri(path: '/api/cards/$id/messages', queryParameters: q).toString());
+    return ChatPage.fromJson((j as Map).cast<String, dynamic>());
+  }
+
+  /// POST `/api/cards/<id>/answer`: pick on the agent's picker. [answers] for an
+  /// AskUserQuestion, [permission] (the option number) for a permission or plan
+  /// prompt. 409 = the agent is no longer waiting on [tool].
+  Future<String> answer(String id, {required String tool, List<Map<String, dynamic>>? answers, int? permission}) async {
+    final j = await _post('/api/cards/$id/answer', {'tool': tool, 'answers': ?answers, 'permission': ?permission}, t: const Duration(seconds: 45));
+    return '${(j as Map)['message']}';
+  }
 
   /// POST /api/cards — Start now or Save to Todo. Returns the server message
   /// ("started 1a2b3c4d …" when started).

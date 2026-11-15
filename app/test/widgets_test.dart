@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:loft/data/grouping.dart';
 import 'package:loft/data/models.dart';
 import 'package:loft/theme/theme.dart';
+import 'package:loft/theme/tokens.dart';
 import 'package:loft/voice/voice_controller.dart';
 import 'package:loft/widgets/common.dart';
 import 'package:loft/widgets/voice_dock.dart';
@@ -35,7 +36,7 @@ void main() {
   testWidgets('usage meter turns amber at 85%', (t) async {
     await t.pumpWidget(wrap(UsageStrip(snap: snap)));
     final personal = t.widget<Text>(find.textContaining('Personal  5h'));
-    expect(personal.style!.color, const Color(0xFFF2B544));
+    expect(personal.style!.color, C.needs);
   });
 
   test('level meter history can scroll (regression: fixed-length list)', () {

@@ -61,9 +61,9 @@ class _MicButtonState extends State<MicButton> {
       return Container(
         width: s,
         height: s,
-        decoration: const BoxDecoration(shape: BoxShape.circle, color: C.raised),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: C.raised),
         alignment: Alignment.center,
-        child: SizedBox(width: icon - 4, height: icon - 4, child: const CircularProgressIndicator(strokeWidth: 2.4, color: C.t2)),
+        child: SizedBox(width: icon - 4, height: icon - 4, child: CircularProgressIndicator(strokeWidth: 2.4, color: C.t2)),
       );
     }
     final listening = v.listening;
@@ -123,7 +123,7 @@ class _RoundBtn extends StatelessWidget {
         message: tooltip,
         child: Material(
           color: filled && onTap != null ? C.primary : (outlined ? Colors.transparent : C.raised),
-          shape: CircleBorder(side: outlined ? const BorderSide(color: C.borderStrong) : BorderSide.none),
+          shape: CircleBorder(side: outlined ? BorderSide(color: C.borderStrong) : BorderSide.none),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: onTap,
@@ -147,6 +147,13 @@ class VoiceDock extends StatelessWidget {
   final bool laptopReachable;
   final VoidCallback onSend;
   final Future<void> Function(String) onTranscript;
+  /// One row (field, mic, send) for the chat view; the hint only shows while it matters.
+  final bool compact;
+  /// A line above the field, e.g. 'Other answer for "Pick toppings"' (amber), with Cancel.
+  final String? chip;
+  final VoidCallback? onChipCancel;
+  /// A note above the field, e.g. replies queued while offline (amber).
+  final String? banner;
 
   const VoiceDock({
     super.key,
@@ -158,6 +165,10 @@ class VoiceDock extends StatelessWidget {
     this.placeholder = 'Reply, or hold the mic',
     this.hostName = 'fedora',
     this.laptopReachable = true,
+    this.compact = false,
+    this.chip,
+    this.onChipCancel,
+    this.banner,
   });
 
   @override
@@ -179,9 +190,9 @@ class VoiceDock extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (listening) ...[
                 Row(children: [
-                  const Dot(C.failed),
+                  Dot(C.failed),
                   const SizedBox(width: S.s2),
-                  const Text('Listening', style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t1)),
+                  Text('Listening', style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t1)),
                   const SizedBox(width: S.s2),
                   Text(clock(voice.elapsed), style: T.mono13),
                   const SizedBox(width: S.s2),
@@ -197,11 +208,11 @@ class VoiceDock extends StatelessWidget {
                     TextSpan(children: [
                       if (field.text.trim().isNotEmpty) TextSpan(text: '${field.text.trim()} '),
                       TextSpan(text: live.stable),
-                      if (live.tail.isNotEmpty) TextSpan(text: '${live.stable.isEmpty ? '' : ' '}${live.tail}', style: const TextStyle(color: C.t3)),
+                      if (live.tail.isNotEmpty) TextSpan(text: '${live.stable.isEmpty ? '' : ' '}${live.tail}', style: TextStyle(color: C.t3)),
                       if (live.stable.isEmpty && live.tail.isEmpty && field.text.trim().isEmpty)
-                        TextSpan(text: listening ? 'Say it…' : '', style: const TextStyle(color: C.t3)),
+                        TextSpan(text: listening ? 'Say it…' : '', style: TextStyle(color: C.t3)),
                     ]),
-                    style: const TextStyle(fontFamily: F.sans, fontSize: 16, height: 22 / 16, color: C.t1),
+                    style: TextStyle(fontFamily: F.sans, fontSize: 16, height: 22 / 16, color: C.t1),
                   ),
                 ),
               ),
@@ -214,16 +225,17 @@ class VoiceDock extends StatelessWidget {
             minLines: 1,
             maxLines: 5,
             textCapitalization: TextCapitalization.sentences,
-            style: const TextStyle(fontFamily: F.sans, fontSize: 16, height: 22 / 16, color: C.t1),
+            style: TextStyle(fontFamily: F.sans, fontSize: 16, height: 22 / 16, color: C.t1),
             decoration: InputDecoration(
               hintText: placeholder,
-              hintStyle: const TextStyle(fontFamily: F.sans, fontSize: 16, color: C.t3),
-              filled: true,
+              hintStyle: TextStyle(fontFamily: F.sans, fontSize: 16, color: C.t3),
+              filled: !compact,
               fillColor: C.raised,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: S.s4, vertical: 13),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: const BorderSide(color: C.borderStrong)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: const BorderSide(color: C.t3)),
+              // Compact: the field sits inside the glass pill, so it draws no box of its own.
+              enabledBorder: compact ? InputBorder.none : OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide(color: C.borderStrong)),
+              focusedBorder: compact ? InputBorder.none : OutlineInputBorder(borderRadius: BorderRadius.circular(R.md), borderSide: BorderSide(color: C.t3)),
             ),
           );
         }
@@ -232,15 +244,15 @@ class VoiceDock extends StatelessWidget {
         Widget hintW;
         if (transcribing) {
           hintW = Row(mainAxisSize: MainAxisSize.min, children: [
-            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.6, color: C.t2)),
+            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.6, color: C.t2)),
             const SizedBox(width: 6),
-            Text(voice.phoneSpeech ? 'Finishing on the phone' : 'Transcribing on $hostName', style: const TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t1)),
+            Text(voice.phoneSpeech ? 'Finishing on the phone' : 'Transcribing on $hostName', style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t1)),
           ]);
         } else if (voice.error != null && !listening) {
           hintW = Text(voice.error!, textAlign: TextAlign.center, style: T.caption.copyWith(color: C.failed));
         } else if (phone) {
           hintW = Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(LucideIcons.wifiOff, size: 14, color: C.needs),
+            Icon(LucideIcons.wifiOff, size: 14, color: C.needs),
             const SizedBox(width: 6),
             Flexible(child: Text('Phone speech · $hostName unreachable, check names', overflow: TextOverflow.ellipsis, style: T.caption.copyWith(color: C.needs, fontWeight: FontWeight.w500))),
           ]);
@@ -253,8 +265,57 @@ class VoiceDock extends StatelessWidget {
           hintW = Text(hint, textAlign: TextAlign.center, style: T.caption);
         }
 
-        return Container(
-          decoration: const BoxDecoration(color: C.surface, border: Border(top: BorderSide(color: C.border))),
+        if (compact) {
+          final showHint = listening || transcribing || voice.error != null || phone;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(S.s3, 8, S.s3, S.s2),
+            child: SafeArea(
+              top: false,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                if (chip != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: S.s2),
+                    child: Row(children: [
+                      Icon(LucideIcons.pencilLine, size: 14, color: C.needs),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(chip!, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.caption.copyWith(color: C.needs, fontWeight: FontWeight.w500))),
+                      if (onChipCancel != null)
+                        InkWell(
+                          onTap: onChipCancel,
+                          child: Padding(padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4), child: Text('Cancel', style: TextStyle(fontFamily: F.sans, fontSize: 12, fontWeight: FontWeight.w500, color: C.t2))),
+                        ),
+                    ]),
+                  ),
+                if (banner != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: S.s2),
+                    child: Row(children: [
+                      Icon(LucideIcons.wifiOff, size: 14, color: C.needs),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(banner!, style: T.caption.copyWith(color: C.needs, fontWeight: FontWeight.w500))),
+                    ]),
+                  ),
+                Glass(
+                  lifted: true,
+                  radius: BorderRadius.circular(28),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Expanded(child: box),
+                      const SizedBox(width: S.s1),
+                      MicButton(voice: voice, size: 44, onDone: onTranscript),
+                      const SizedBox(width: S.s1),
+                      _RoundBtn(LucideIcons.arrowUp, tooltip: 'Send', filled: true, outlined: !(hasText && !listening && !transcribing), onTap: hasText && !listening && !transcribing ? onSend : null),
+                    ]),
+                  ),
+                ),
+                if (showHint) ...[const SizedBox(height: S.s2), SizedBox(height: 18, child: Center(child: hintW))],
+              ]),
+            ),
+          );
+        }
+
+        return Padding(
           padding: const EdgeInsets.fromLTRB(S.s4, S.s3, S.s4, S.s2),
           child: SafeArea(
             top: false,

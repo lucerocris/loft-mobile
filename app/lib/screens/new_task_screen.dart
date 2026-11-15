@@ -14,8 +14,8 @@ import '../voice/voice_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/voice_dock.dart';
 
-/// Figma 5 · New task and 6 · New task · Listening. Voice first: opened from
-/// the inbox's "New task" button it starts listening straight away.
+/// Figma 5 · New task and 6 · New task · Listening. Text first: opens with the
+/// keyboard up; long-pressing the inbox's "New task" button starts listening instead.
 /// With [todoId] it edits and starts an existing Todo instead.
 class NewTaskScreen extends ConsumerStatefulWidget {
   final bool listen;
@@ -125,7 +125,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Project folder'),
-        content: TextField(controller: ctl, autofocus: true, autocorrect: false, style: const TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1), onSubmitted: (s) => Navigator.pop(ctx, s)),
+        content: TextField(controller: ctl, autofocus: true, autocorrect: false, style: TextStyle(fontFamily: F.mono, fontSize: 15, color: C.t1), onSubmitted: (s) => Navigator.pop(ctx, s)),
         actions: [
           Btn('Cancel', onTap: () => Navigator.pop(ctx), kind: BtnKind.quiet, height: 44),
           Btn('Use it', onTap: () => Navigator.pop(ctx, ctl.text), kind: BtnKind.primary, height: 44),
@@ -258,7 +258,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                     ]),
                     const SizedBox(height: S.s6),
                   ],
-                  const Text('Folder', style: T.label),
+                  Text('Folder', style: T.label),
                   const SizedBox(height: S.s2),
                   Wrap(spacing: S.s2, runSpacing: S.s2, children: [
                     for (final d in (todo == null ? _dirs(snap) : [todo.cwd]))
@@ -275,9 +275,9 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                         height: 24,
                         child: listening
                             ? Row(children: [
-                                const Dot(C.failed),
+                                Dot(C.failed),
                                 const SizedBox(width: S.s2),
-                                const Text('Listening', style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t1)),
+                                Text('Listening', style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t1)),
                                 const SizedBox(width: S.s2),
                                 Text(clock(_voice.elapsed), style: T.mono13),
                                 const SizedBox(width: S.s2),
@@ -286,7 +286,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                             : Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(transcribing ? 'Transcribing on $host…' : 'What should it do?',
-                                    style: const TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t3)),
+                                    style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t3)),
                               ),
                       ),
                       const SizedBox(height: S.s3),
@@ -295,7 +295,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                           TextSpan(children: [
                             if (_prompt.text.trim().isNotEmpty) TextSpan(text: '${_prompt.text.trim()} '),
                             TextSpan(text: _voice.live.stable),
-                            if (_voice.live.tail.isNotEmpty) TextSpan(text: '${_voice.live.stable.isEmpty ? '' : ' '}${_voice.live.tail}', style: const TextStyle(color: C.t3)),
+                            if (_voice.live.tail.isNotEmpty) TextSpan(text: '${_voice.live.stable.isEmpty ? '' : ' '}${_voice.live.tail}', style: TextStyle(color: C.t3)),
                           ]),
                           style: _promptStyle,
                         )
@@ -303,25 +303,26 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
                         TextField(
                           controller: _prompt,
                           focusNode: _focus,
+                          autofocus: !widget.listen && widget.todoId == null,
                           minLines: 3,
                           maxLines: null,
                           textCapitalization: TextCapitalization.sentences,
                           style: _promptStyle,
-                          decoration: const InputDecoration.collapsed(hintText: 'Tap the mic and say it, or type.', hintStyle: TextStyle(fontFamily: F.sans, fontSize: 20, color: C.t3)),
+                          decoration: InputDecoration.collapsed(hintText: 'Type it, or tap the mic and say it.', hintStyle: TextStyle(fontFamily: F.sans, fontSize: 20, color: C.t3)),
                         ),
                       if (title.isNotEmpty && !listening && todo == null) ...[
                         const SizedBox(height: S.s3),
                         Row(children: [
-                          const Text('Title', style: TextStyle(fontFamily: F.sans, fontSize: 12, fontWeight: FontWeight.w500, color: C.t3)),
+                          Text('Title', style: TextStyle(fontFamily: F.sans, fontSize: 12, fontWeight: FontWeight.w500, color: C.t3)),
                           const SizedBox(width: S.s2),
-                          Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2))),
+                          Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t2))),
                         ]),
                       ],
                     ]),
                   ),
                   if (_error != null || _voice.error != null) ...[
                     const SizedBox(height: S.s3),
-                    Text(_error ?? _voice.error!, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.failed)),
+                    Text(_error ?? _voice.error!, style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.failed)),
                   ],
                   const SizedBox(height: S.s6),
                   Center(
@@ -358,7 +359,7 @@ class _NewTaskScreenState extends ConsumerState<NewTaskScreen> {
   }
 }
 
-const _promptStyle = TextStyle(fontFamily: F.sans, fontSize: 20, height: 28 / 20, color: C.t1);
+final _promptStyle = TextStyle(fontFamily: F.sans, fontSize: 20, height: 28 / 20, color: C.t1);
 
 class _Chip extends StatelessWidget {
   final String label;
@@ -385,7 +386,7 @@ class _Chip extends StatelessWidget {
                 Text(label,
                     style: TextStyle(
                         fontFamily: mono ? F.mono : F.sans, fontSize: mono ? 13 : 14, fontWeight: selected ? FontWeight.w500 : FontWeight.w400, color: selected ? C.t1 : C.t2)),
-                if (sub != null) ...[const SizedBox(width: S.s2), Text(sub!, style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3))],
+                if (sub != null) ...[const SizedBox(width: S.s2), Text(sub!, style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3))],
               ]),
             ),
           ),

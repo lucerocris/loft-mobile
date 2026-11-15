@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:xterm/xterm.dart';
@@ -13,11 +12,12 @@ import '../data/models.dart';
 import '../state/conn.dart';
 import '../theme/tokens.dart';
 import '../voice/voice_controller.dart';
-import '../widgets/agent_menu.dart';
+import '../state/session_view.dart';
 import '../widgets/common.dart';
+import '../widgets/session_header.dart';
 import '../widgets/voice_dock.dart';
 
-const loftTerminalTheme = TerminalTheme(
+final loftTerminalTheme = TerminalTheme(
   cursor: C.t1,
   selection: Color(0x4D5B8DFF),
   foreground: C.t1,
@@ -43,7 +43,8 @@ const loftTerminalTheme = TerminalTheme(
   searchHitForeground: C.onPrimary,
 );
 
-/// Figma 7 · Terminal: live `claude attach` over `/ws/term/<id>`. Back only detaches.
+/// Figma 7 · Terminal (and Chat view 5): live `claude attach` over `/ws/term/<id>`.
+/// Back only detaches. The header's toggle switches to Chat.
 class TerminalScreen extends ConsumerStatefulWidget {
   final String id;
   const TerminalScreen({super.key, required this.id});
@@ -153,20 +154,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(children: [
-          SizedBox(
-            height: 64,
-            child: Padding(
-              padding: const EdgeInsets.all(S.s1),
-              child: Row(children: [
-                IconBtn(LucideIcons.arrowLeft, tooltip: 'Back (detaches)', onTap: () => context.pop()),
-                const SizedBox(width: S.s1),
-                Expanded(child: AgentTitle(card: c, status: _status)),
-                if (c.col == Col.needs) IconBtn(LucideIcons.messageSquare, tooltip: 'Question', onTap: () => context.pushReplacement('/agent/${c.id}')),
-                if (card != null) SizedBox(width: 48, height: 48, child: AgentMenuButton(card: card)),
-              ]),
-            ),
-          ),
-          const Divider(height: 1, color: C.border),
+          SessionHeader(card: c, mode: SessionView.terminal, status: _status, showMenu: card != null),
           Expanded(
             child: Stack(children: [
               Padding(
@@ -207,9 +195,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                           decoration: BoxDecoration(color: C.raised, border: Border.all(color: C.borderStrong), borderRadius: BorderRadius.circular(R.md)),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
-                              const Dot(C.failed),
+                              Dot(C.failed),
                               const SizedBox(width: S.s2),
-                              Text(_voice.listening ? 'Listening' : 'Transcribing…', style: const TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t1)),
+                              Text(_voice.listening ? 'Listening' : 'Transcribing…', style: TextStyle(fontFamily: F.sans, fontSize: 13, fontWeight: FontWeight.w500, color: C.t1)),
                               const SizedBox(width: S.s2),
                               Text(clock(_voice.elapsed), style: T.mono13),
                               const SizedBox(width: S.s2),
@@ -217,7 +205,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                             ]),
                             if (_voice.text.isNotEmpty) ...[
                               const SizedBox(height: S.s2),
-                              Text(_voice.text, style: const TextStyle(fontFamily: F.sans, fontSize: 15, color: C.t1)),
+                              Text(_voice.text, style: TextStyle(fontFamily: F.sans, fontSize: 15, color: C.t1)),
                             ],
                           ]),
                         ),
@@ -226,7 +214,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             ]),
           ),
           Container(
-            decoration: const BoxDecoration(color: C.surface, border: Border(top: BorderSide(color: C.border))),
+            decoration: BoxDecoration(color: C.surface, border: Border(top: BorderSide(color: C.border))),
             padding: const EdgeInsets.only(top: 9, bottom: 8),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Row(children: [
@@ -259,7 +247,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 ),
               ]),
               const SizedBox(height: S.s2),
-              const Text('Mic pastes what you said at the prompt. Enter sends it.', style: T.caption),
+              Text('Mic pastes what you said at the prompt. Enter sends it.', style: T.caption),
             ]),
           ),
         ]),
@@ -282,7 +270,7 @@ class _Key extends StatelessWidget {
           label: label,
           child: Material(
             color: C.raised,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.sm), side: const BorderSide(color: C.borderStrong)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.sm), side: BorderSide(color: C.borderStrong)),
             child: InkWell(
               borderRadius: BorderRadius.circular(R.sm),
               onTap: onTap,
@@ -294,7 +282,7 @@ class _Key extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: text == null ? 0 : 14),
                     child: Center(
                       widthFactor: 1,
-                      child: icon != null ? Icon(icon, size: 18, color: C.t1) : Text(text!, style: const TextStyle(fontFamily: F.mono, fontSize: 13, color: C.t1)),
+                      child: icon != null ? Icon(icon, size: 18, color: C.t1) : Text(text!, style: TextStyle(fontFamily: F.mono, fontSize: 13, color: C.t1)),
                     ),
                   ),
                 ),

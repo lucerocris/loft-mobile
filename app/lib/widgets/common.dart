@@ -8,10 +8,11 @@ import '../theme/tokens.dart';
 /// The Loft mark: a house (the loft) with two windows, work blue and personal green.
 class LoftMark extends StatelessWidget {
   final double size;
-  final Color body, left, right;
-  const LoftMark({super.key, this.size = 24, this.body = C.t1, this.left = C.work, this.right = C.personal});
+  final Color? body;
+  final Color left, right;
+  const LoftMark({super.key, this.size = 24, this.body, this.left = C.work, this.right = C.personal});
   @override
-  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _MarkPainter(body, left, right));
+  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _MarkPainter(body ?? C.t1, left, right));
 }
 
 class _MarkPainter extends CustomPainter {
@@ -66,19 +67,23 @@ class IconBtn extends StatelessWidget {
   final VoidCallback? onTap;
   final String tooltip;
   final double size;
-  final Color color;
-  const IconBtn(this.icon, {super.key, required this.onTap, required this.tooltip, this.size = 22, this.color = C.t1});
+  final Color? _color;
+  /// A glass circle (M1): for buttons that float over content, like app-bar actions.
+  final bool glass;
+  const IconBtn(this.icon, {super.key, required this.onTap, required this.tooltip, this.size = 22, Color? color, this.glass = false}) : _color = color;
+  Color get color => _color ?? C.t1;
   @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 48,
-        height: 48,
-        child: IconButton(
-          onPressed: onTap,
-          tooltip: tooltip,
-          icon: Icon(icon, size: size, color: onTap == null ? C.t3 : color),
-          style: IconButton.styleFrom(shape: const CircleBorder()),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final btn = IconButton(
+      onPressed: onTap,
+      tooltip: tooltip,
+      padding: EdgeInsets.zero,
+      icon: Icon(icon, size: glass ? size - 2 : size, color: onTap == null ? C.t3 : color),
+      style: IconButton.styleFrom(shape: const CircleBorder()),
+    );
+    if (!glass) return SizedBox(width: 48, height: 48, child: btn);
+    return Padding(padding: const EdgeInsets.all(4), child: Glass(child: SizedBox(width: 40, height: 40, child: btn)));
+  }
 }
 
 enum BtnKind { primary, secondary, quiet, danger }
@@ -167,9 +172,11 @@ class PillChip extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
         button: true,
         selected: selected,
-        child: Material(
-          color: selected ? C.selected : C.raised,
-          shape: StadiumBorder(side: BorderSide(color: selected ? C.borderStrong : C.border)),
+        child: Glass(
+          border: selected ? C.borderStrong : null,
+          child: Material(
+          color: selected ? C.selected : Colors.transparent,
+          shape: const StadiumBorder(),
           child: InkWell(
             customBorder: const StadiumBorder(),
             onTap: onTap,
@@ -180,13 +187,13 @@ class PillChip extends StatelessWidget {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   if (lead != null) ...[lead!, const SizedBox(width: S.s2)],
                   Text(label, style: TextStyle(fontFamily: F.sans, fontSize: 14, fontWeight: FontWeight.w500, color: selected ? C.t1 : C.t2)),
-                  if (count != null) ...[const SizedBox(width: S.s2), Text('$count', style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3))],
+                  if (count != null) ...[const SizedBox(width: S.s2), Text('$count', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3))],
                   if (trail != null) ...[const SizedBox(width: 6), trail!],
                 ]),
               ),
             ),
           ),
-        ),
+        )),
       );
 }
 
@@ -205,8 +212,8 @@ class InboxToolbar extends StatelessWidget {
         child: Row(children: [
           PillChip(
             label: 'By ${groupByLabel(groupBy).toLowerCase()}',
-            lead: const Icon(LucideIcons.listFilter, size: 16, color: C.t2),
-            trail: const Icon(LucideIcons.chevronDown, size: 16, color: C.t3),
+            lead: Icon(LucideIcons.listFilter, size: 16, color: C.t2),
+            trail: Icon(LucideIcons.chevronDown, size: 16, color: C.t3),
             onTap: onGroupBy,
           ),
           if (options.isNotEmpty) Container(width: 1, height: 24, margin: const EdgeInsets.symmetric(horizontal: S.s2), color: C.borderStrong),
@@ -233,7 +240,7 @@ class UsageMeter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fill = u.hot ? C.needs : color;
+    final fill = u.hot ? C.needsDot : color;
     String pct(String s) => UsageWindow.pct(s) == null ? s : '$s%';
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       ClipRRect(
@@ -299,11 +306,11 @@ class AgentItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = card;
     final Widget status = c.failed
-        ? const Dot(C.failed)
+        ? Dot(C.failed)
         : switch (c.col) {
-            Col.needs => const Dot(C.needs),
-            Col.running => _Pulse(color: accountColor ?? C.work),
-            Col.todo => const Dot(C.t3, hollow: true),
+            Col.needs => Dot(C.needsDot),
+            Col.running => Pulse(color: accountColor ?? C.work),
+            Col.todo => Dot(C.t3, hollow: true),
             Col.done => Dot(C.t3.withValues(alpha: .6)),
           };
     final lineColor = c.failed ? C.failed : (c.col == Col.needs ? C.t2 : C.t3);
@@ -321,7 +328,7 @@ class AgentItem extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  if (c.pinned) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(LucideIcons.pin, size: 13, color: C.t3)),
+                  if (c.pinned) Padding(padding: EdgeInsets.only(right: 4), child: Icon(LucideIcons.pin, size: 13, color: C.t3)),
                   Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.rowTitle.copyWith(color: c.col == Col.done ? C.t2 : C.t1))),
                 ]),
                 const SizedBox(height: 1),
@@ -349,14 +356,14 @@ class AgentItem extends StatelessWidget {
   }
 }
 
-class _Pulse extends StatefulWidget {
+class Pulse extends StatefulWidget {
   final Color color;
-  const _Pulse({required this.color});
+  const Pulse({super.key, required this.color});
   @override
-  State<_Pulse> createState() => _PulseState();
+  State<Pulse> createState() => PulseState();
 }
 
-class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
+class PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
   late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..repeat();
   @override
   void dispose() {
@@ -401,7 +408,7 @@ class SectionHeader extends StatelessWidget {
               if (lead != null) ...[lead!, const SizedBox(width: S.s2)],
               Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.label.copyWith(color: alert ? C.needs : C.t2))),
               const SizedBox(width: S.s2),
-              Text('$count', style: const TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
+              Text('$count', style: TextStyle(fontFamily: F.sans, fontSize: 13, color: C.t3)),
               if (needs > 0) Text('  · $needs need${needs == 1 ? 's' : ''} you', style: T.label.copyWith(color: C.needs)),
             ]),
           ),
@@ -413,8 +420,9 @@ class SectionHeader extends StatelessWidget {
 /// Level bars for the "Listening" header (Figma Voice dock).
 class LevelBars extends StatelessWidget {
   final List<double> levels;
-  final Color color;
-  const LevelBars(this.levels, {super.key, this.color = C.t1});
+  final Color? _color;
+  const LevelBars(this.levels, {super.key, Color? color}) : _color = color;
+  Color get color => _color ?? C.t1;
   @override
   Widget build(BuildContext context) => SizedBox(
         height: 24,
