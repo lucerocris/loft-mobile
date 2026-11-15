@@ -9,6 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:xterm/xterm.dart';
 
 import '../data/models.dart';
+import '../data/term_mouse.dart';
 import '../state/conn.dart';
 import '../theme/tokens.dart';
 import '../voice/voice_controller.dart';
@@ -53,7 +54,7 @@ class TerminalScreen extends ConsumerStatefulWidget {
 }
 
 class _TerminalScreenState extends ConsumerState<TerminalScreen> {
-  final _term = Terminal(maxLines: 5000);
+  final _term = Terminal(maxLines: 5000, mouseHandler: const LoftMouseHandler());
   final _termCtl = TerminalController();
   final _focus = FocusNode();
   late final VoiceController _voice;
@@ -168,6 +169,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   keyboardType: TextInputType.text,
                   deleteDetection: true,
                   backgroundOpacity: 1,
+                  // Full-screen Claude scrolls by wheel reports only; never turn a drag into ↑/↓ (prompt history).
+                  simulateScroll: false,
                 ),
               ),
               if (!_attached)
